@@ -1,0 +1,9 @@
+faster-whisper
+sounddevice
+numpy
+keyboard
+pyperclip
+pystray
+pillow
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*
