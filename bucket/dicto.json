@@ -1,0 +1,29 @@
+{
+    "version": "1.0.0",
+    "description": "Dictado por voz para Windows, 100 % local, con Whisper",
+    "homepage": "https://github.com/arocafull00/dicto",
+    "license": "Unknown",
+    "depends": "python",
+    "url": "https://github.com/arocafull00/dicto/archive/refs/tags/v1.0.0.zip",
+    "hash": "1613d1a6908635ce7cef50173b779560ff7269758d018bf953a09ab73c7a41ea",
+    "extract_dir": "dicto-1.0.0",
+    "post_install": [
+        "Write-Host 'Creando el entorno de Python e instalando dependencias. Puede tardar unos minutos...'",
+        "& python -m venv \"$dir\\.venv\"",
+        "$req = Get-Content \"$dir\\requirements.txt\"",
+        "if (-not (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) { $req = $req | Where-Object { $_ -notmatch 'nvidia' } }",
+        "$req | Set-Content \"$dir\\requirements-scoop.txt\"",
+        "& \"$dir\\.venv\\Scripts\\python.exe\" -m pip install -r \"$dir\\requirements-scoop.txt\" --disable-pip-version-check --quiet",
+        "if ($LASTEXITCODE -ne 0) { throw 'No se pudieron instalar las dependencias de Dicto.' }"
+    ],
+    "bin": [["dicto.bat", "dicto"]],
+    "notes": [
+        "Ejecuta 'dicto' para abrirlo. La primera vez se descarga el modelo de voz (~1,6 GB con el modelo Turbo).",
+        "Después tendrás accesos directos a Dicto en el menú Inicio y en el escritorio."
+    ],
+    "checkver": "github",
+    "autoupdate": {
+        "url": "https://github.com/arocafull00/dicto/archive/refs/tags/v$version.zip",
+        "extract_dir": "dicto-$version"
+    }
+}

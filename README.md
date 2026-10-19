@@ -56,7 +56,7 @@ El icono de la bandeja cambia de color según el estado:
 
 ## 📦 Instalación
 
-**Requisitos:** Windows 10/11, [Python 3.10 o superior](https://www.python.org/downloads/) (marca *Add python.exe to PATH* al instalarlo) y un micrófono. Una GPU NVIDIA es opcional pero muy recomendable.
+**Requisitos:** Windows 10/11, [Python 3.10 o superior](https://www.python.org/downloads/) (marca *Add python.exe to PATH* al instalarlo; con Scoop no hace falta) y un micrófono. Una GPU NVIDIA es opcional pero muy recomendable.
 
 ### Instalación rápida
 
@@ -69,6 +69,20 @@ El icono de la bandeja cambia de color según el estado:
 2. Abre **`instalar.bat`** con doble clic. Crea el entorno de Python, instala las dependencias (con soporte CUDA solo si detecta una GPU NVIDIA) y abre Dicto.
 
 ¡Y ya está! A partir de ahí, abre Dicto desde el acceso directo del menú Inicio o del escritorio.
+
+### Con Scoop
+
+Si usas [Scoop](https://scoop.sh), no necesitas instalar Python a mano: Scoop lo instala como dependencia.
+
+```bash
+scoop bucket add dicto https://github.com/arocafull00/dicto
+```
+
+```bash
+scoop install dicto
+```
+
+Después, ejecuta `dicto` para abrirlo. Para actualizar, `scoop update dicto`.
 
 ### La primera vez que se abre
 
