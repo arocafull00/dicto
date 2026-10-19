@@ -56,32 +56,46 @@ El icono de la bandeja cambia de color según el estado:
 
 ## 📦 Instalación
 
-**Requisitos:** Windows 10/11, Python 3.10 o superior y un micrófono. Una GPU NVIDIA es opcional pero muy recomendable.
+**Requisitos:** Windows 10/11, [Python 3.10 o superior](https://www.python.org/downloads/) (marca *Add python.exe to PATH* al instalarlo) y un micrófono. Una GPU NVIDIA es opcional pero muy recomendable.
 
-```bash
-git clone https://github.com/arocafull00/dicto.git
-```
+### Instalación rápida
 
-```bash
-cd dicto
-```
+1. Descarga el proyecto: botón verde **Code → Download ZIP** y descomprímelo, o con Git:
+
+   ```bash
+   git clone https://github.com/arocafull00/dicto.git
+   ```
+
+2. Abre **`instalar.bat`** con doble clic. Crea el entorno de Python, instala las dependencias (con soporte CUDA solo si detecta una GPU NVIDIA) y abre Dicto.
+
+¡Y ya está! A partir de ahí, abre Dicto desde el acceso directo del menú Inicio o del escritorio.
+
+### La primera vez que se abre
+
+1. **Se descarga el modelo de voz** desde Hugging Face, una sola vez. Con el modelo Turbo son unos **1,6 GB**, así que puede tardar varios minutos: mientras tanto el icono de la bandeja se ve ⚪ gris. Cuando se pone 🔵 azul, ya puedes dictar.
+2. Se crean accesos directos a **Dicto** en el menú Inicio y en el escritorio.
+3. Se abre la ventana de configuración para que ajustes el atajo, el idioma y el micrófono.
+
+> [!NOTE]
+> Los modelos se guardan en `%USERPROFILE%\.cache\huggingface`. Si cambias de modelo en la configuración, el nuevo se descarga la primera vez que lo uses. Después, Dicto funciona sin internet.
+
+<details>
+<summary><b>Instalación manual</b></summary>
 
 ```bash
 python -m venv .venv
 ```
 
 ```bash
-.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-Después, abre **`dicto.bat`** con doble clic. La primera vez:
+Sin GPU NVIDIA puedes quitar antes `nvidia-cublas-cu12` y `nvidia-cudnn-cu12` de `requirements.txt`. Después, abre `dicto.bat`.
 
-1. Se descarga el modelo de Whisper elegido (unos cientos de MB, solo una vez).
-2. Se crean accesos directos a **Dicto** en el menú Inicio y en el escritorio.
-3. Se abre la ventana de configuración para que ajustes el atajo, el idioma y el micrófono.
+</details>
 
 > [!TIP]
-> Sin GPU NVIDIA puedes quitar `nvidia-cublas-cu12` y `nvidia-cudnn-cu12` de `requirements.txt`. Dicto pasará a CPU automáticamente; elige un modelo más ligero (*Small* o *Base*) para que vaya fluido.
+> Sin GPU, Dicto funciona en CPU automáticamente. Elige un modelo más ligero (*Small* o *Base*) para que vaya fluido.
 
 ## 🎛️ Configuración
 
@@ -103,13 +117,13 @@ Los ajustes se guardan en `%APPDATA%\Dicto\config.json` y el registro de activid
 
 ## 🧠 Modelos
 
-| Modelo | Velocidad | Precisión | Ideal para |
-| --- | :---: | :---: | --- |
-| `large-v3-turbo` | ⚡⚡⚡ | ★★★★ | Uso diario con GPU *(por defecto)* |
-| `large-v3` | ⚡ | ★★★★★ | Máxima precisión |
-| `medium` | ⚡⚡ | ★★★ | GPUs modestas |
-| `small` | ⚡⚡⚡ | ★★ | CPU |
-| `base` | ⚡⚡⚡⚡ | ★ | Equipos muy ligeros |
+| Modelo | Descarga | Velocidad | Precisión | Ideal para |
+| --- | :---: | :---: | :---: | --- |
+| `large-v3-turbo` | ~1,6 GB | ⚡⚡⚡ | ★★★★ | Uso diario con GPU *(por defecto)* |
+| `large-v3` | ~3 GB | ⚡ | ★★★★★ | Máxima precisión |
+| `medium` | ~1,5 GB | ⚡⚡ | ★★★ | GPUs modestas |
+| `small` | ~500 MB | ⚡⚡⚡ | ★★ | CPU |
+| `base` | ~150 MB | ⚡⚡⚡⚡ | ★ | Equipos muy ligeros |
 
 ## 🔒 Privacidad
 
