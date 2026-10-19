@@ -2,34 +2,47 @@ import ctypes
 import glob
 import json
 import os
+import plistlib
 import queue
+import shlex
 import subprocess
 import sys
 import threading
 import time
 import tkinter as tk
-import winreg
-import winsound
 from tkinter import ttk
+
+MAC = sys.platform == "darwin"
+if MAC:
+    import fcntl
+else:
+    import winreg
+    import winsound
 
 APP = "Dicto"
 HERE = os.path.dirname(os.path.abspath(__file__))
-CONFIG_DIR = os.path.join(os.environ["APPDATA"], APP)
+if MAC:
+    CONFIG_DIR = os.path.expanduser(f"~/Library/Application Support/{APP}")
+else:
+    CONFIG_DIR = os.path.join(os.environ["APPDATA"], APP)
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+LOG_PATH = os.path.join(CONFIG_DIR, "dicto.log")
 ICON_PATH = os.path.join(HERE, "dicto.ico")
 PYTHONW = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+BUNDLE_ID = "io.github.arocafull00.dicto"
+APP_BUNDLE = os.path.expanduser(f"~/Applications/{APP}.app")
+LAUNCH_AGENT = os.path.expanduser(f"~/Library/LaunchAgents/{BUNDLE_ID}.plist")
 RATE = 16000
 
 os.makedirs(CONFIG_DIR, exist_ok=True)
 if sys.stdout is None or sys.stderr is None:
-    sys.stdout = sys.stderr = open(os.path.join(CONFIG_DIR, "dicto.log"), "a", encoding="utf-8", buffering=1)
+    sys.stdout = sys.stderr = open(LOG_PATH, "a", encoding="utf-8", buffering=1)
 
 for d in glob.glob(os.path.join(sys.prefix, "Lib", "site-packages", "nvidia", "*", "bin")):
     os.add_dll_directory(d)
     os.environ["PATH"] = d + os.pathsep + os.environ["PATH"]
 
-import keyboard
 import numpy as np
 import pyperclip
 import pystray
@@ -37,8 +50,17 @@ import sounddevice as sd
 from faster_whisper import WhisperModel
 from PIL import Image, ImageDraw
 
+if MAC:
+    import AppKit
+    import mackeys as keyboard
+else:
+    import keyboard
+
+TITLE_FONT = ("Helvetica Neue", 18, "bold") if MAC else ("Segoe UI Semibold", 16)
+HOTKEY_FONT = ("Helvetica Neue", 13, "bold") if MAC else ("Segoe UI Semibold", 10)
+
 DEFAULTS = {
-    "hotkey": "right ctrl",
+    "hotkey": "right option" if MAC else "right ctrl",
     "mode": "hold",
     "language": "es",
     "model": "large-v3-turbo",
@@ -110,6 +132,14 @@ ICONS = {k: make_icon(c) for k, c in COLORS.items()}
 
 
 def set_autostart(on):
+    if MAC:
+        if on:
+            os.makedirs(os.path.dirname(LAUNCH_AGENT), exist_ok=True)
+            with open(LAUNCH_AGENT, "wb") as f:
+                plistlib.dump({"Label": BUNDLE_ID, "ProgramArguments": ["/usr/bin/open", APP_BUNDLE], "RunAtLoad": True}, f)
+        elif os.path.exists(LAUNCH_AGENT):
+            os.remove(LAUNCH_AGENT)
+        return
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
         if on:
             winreg.SetValueEx(k, APP, 0, winreg.REG_SZ, f'"{PYTHONW}" "{os.path.join(HERE, "dicto.py")}"')
@@ -120,7 +150,44 @@ def set_autostart(on):
                 pass
 
 
+def ensure_mac_app():
+    contents = os.path.join(APP_BUNDLE, "Contents")
+    if os.path.exists(contents):
+        return
+    os.makedirs(os.path.join(contents, "MacOS"))
+    os.makedirs(os.path.join(contents, "Resources"))
+    with open(os.path.join(contents, "Info.plist"), "wb") as f:
+        plistlib.dump(
+            {
+                "CFBundleName": APP,
+                "CFBundleDisplayName": APP,
+                "CFBundleIdentifier": BUNDLE_ID,
+                "CFBundleExecutable": APP,
+                "CFBundleIconFile": "dicto",
+                "CFBundlePackageType": "APPL",
+                "LSUIElement": True,
+                "NSMicrophoneUsageDescription": "Dicto usa el micrófono para transcribir lo que dictas.",
+            },
+            f,
+        )
+    launcher = os.path.join(contents, "MacOS", APP)
+    with open(launcher, "w", encoding="utf-8") as f:
+        f.write(
+            "#!/bin/sh\n"
+            f"exec {shlex.quote(sys.executable)} {shlex.quote(os.path.join(HERE, 'dicto.py'))}"
+            f" >> {shlex.quote(LOG_PATH)} 2>&1\n"
+        )
+    os.chmod(launcher, 0o755)
+    try:
+        make_icon(COLORS["idle"], 1024).save(os.path.join(contents, "Resources", "dicto.icns"))
+    except Exception as e:
+        print(f"No se pudo crear el icono de la app: {e}")
+
+
 def ensure_shortcuts():
+    if MAC:
+        ensure_mac_app()
+        return
     if not os.path.exists(ICON_PATH):
         make_icon(COLORS["idle"], 256).save(ICON_PATH, sizes=[(16, 16), (32, 32), (48, 48), (256, 256)])
     start_menu = os.path.join(os.environ["APPDATA"], r"Microsoft\Windows\Start Menu\Programs", f"{APP}.lnk")
@@ -170,8 +237,11 @@ def hotkey_down(hotkey):
         return False
 
 
-def beep(freq, ms):
-    threading.Thread(target=winsound.Beep, args=(freq, ms), daemon=True).start()
+def beep(start):
+    if MAC:
+        subprocess.Popen(["afplay", f"/System/Library/Sounds/{'Tink' if start else 'Pop'}.aiff"])
+    else:
+        threading.Thread(target=winsound.Beep, args=(880 if start else 440, 70), daemon=True).start()
 
 
 def paste(text):
@@ -181,10 +251,19 @@ def paste(text):
         previous = None
     pyperclip.copy(text)
     time.sleep(0.05)
-    keyboard.send("ctrl+v")
+    keyboard.send("cmd+v" if MAC else "ctrl+v")
     time.sleep(0.3)
     if previous is not None:
         pyperclip.copy(previous)
+
+
+def load_model(name):
+    if not MAC:
+        try:
+            return WhisperModel(name, device="cuda", compute_type="float16")
+        except Exception as e:
+            print(f"GPU no disponible ({e}); usando CPU.")
+    return WhisperModel(name, device="cpu", compute_type="int8")
 
 
 class Engine:
@@ -206,11 +285,7 @@ class Engine:
         if cfg["model"] != self.model_name:
             self.app.set_status("loading")
             self.model = None
-            try:
-                self.model = WhisperModel(cfg["model"], device="cuda", compute_type="float16")
-            except Exception as e:
-                print(f"GPU no disponible ({e}); usando CPU.")
-                self.model = WhisperModel(cfg["model"], device="cpu", compute_type="int8")
+            self.model = load_model(cfg["model"])
             self.model_name = cfg["model"]
         if self.stream is None or cfg["device"] != self.device:
             if self.stream:
@@ -268,13 +343,13 @@ class Engine:
         self.recording = True
         self.app.set_status("recording")
         if self.app.cfg["sounds"]:
-            beep(880, 70)
+            beep(True)
 
     def stop(self):
         cfg = self.app.cfg
         self.recording = False
         if cfg["sounds"]:
-            beep(440, 70)
+            beep(False)
         audio = np.concatenate(self.chunks) if self.chunks else np.zeros(0, np.float32)
         if len(audio) < RATE * 0.3:
             self.app.set_status("idle")
@@ -306,23 +381,29 @@ class Overlay:
     BG = "#1c1c1f"
 
     def __init__(self, root):
-        self.s = root.winfo_fpixels("1i") / 96
+        self.s = root.winfo_fpixels("1i") / (72 if MAC else 96)
         self.w, self.h = int(128 * self.s), int(36 * self.s)
         win = self.win = tk.Toplevel(root)
         win.overrideredirect(True)
         win.attributes("-topmost", True)
         win.attributes("-alpha", 0.0)
-        win.attributes("-transparentcolor", self.KEY)
-        win.configure(bg=self.KEY)
-        self.c = tk.Canvas(win, width=self.w, height=self.h, bg=self.KEY, highlightthickness=0)
+        if MAC:
+            win.attributes("-transparent", True)
+            bg = "systemTransparent"
+        else:
+            win.attributes("-transparentcolor", self.KEY)
+            bg = self.KEY
+        win.configure(bg=bg)
+        self.c = tk.Canvas(win, width=self.w, height=self.h, bg=bg, highlightthickness=0)
         self.c.pack()
         x = (win.winfo_screenwidth() - self.w) // 2
         y = win.winfo_screenheight() - self.h - int(90 * self.s)
         win.geometry(f"{self.w}x{self.h}+{x}+{y}")
         win.update_idletasks()
-        hwnd = ctypes.windll.user32.GetParent(win.winfo_id())
-        style = ctypes.windll.user32.GetWindowLongW(hwnd, -20)
-        ctypes.windll.user32.SetWindowLongW(hwnd, -20, style | 0x08000000 | 0x80)
+        if not MAC:
+            hwnd = ctypes.windll.user32.GetParent(win.winfo_id())
+            style = ctypes.windll.user32.GetWindowLongW(hwnd, -20)
+            ctypes.windll.user32.SetWindowLongW(hwnd, -20, style | 0x08000000 | 0x80)
         self.levels = [0.0] * 14
         self.visible = False
         self.frame = 0
@@ -362,7 +443,7 @@ class Settings:
         cfg = app.cfg
         win = self.win = tk.Toplevel(app.root)
         win.title("Dicto · Configuración")
-        win.iconbitmap(ICON_PATH)
+        set_window_icon(win)
         win.resizable(False, False)
         win.protocol("WM_DELETE_WINDOW", self.close)
 
@@ -380,13 +461,13 @@ class Settings:
         f.grid(sticky="nsew")
         f.columnconfigure(1, weight=1)
 
-        ttk.Label(f, text="Dicto", font=("Segoe UI Semibold", 16)).grid(row=0, column=0, columnspan=3, sticky="w")
+        ttk.Label(f, text="Dicto", font=TITLE_FONT).grid(row=0, column=0, columnspan=3, sticky="w")
         self.status = ttk.Label(f, foreground="#6b6b70")
         self.status.grid(row=1, column=0, columnspan=3, sticky="w", pady=(0, 14))
 
         r = 2
         ttk.Label(f, text="Atajo").grid(row=r, column=0, sticky="w", pady=5, padx=(0, 14))
-        ttk.Label(f, textvariable=self.hotkey, font=("Segoe UI Semibold", 10)).grid(row=r, column=1, sticky="w")
+        ttk.Label(f, textvariable=self.hotkey, font=HOTKEY_FONT).grid(row=r, column=1, sticky="w")
         self.capture_btn = ttk.Button(f, text="Cambiar…", command=self.capture)
         self.capture_btn.grid(row=r, column=2, sticky="e")
 
@@ -413,7 +494,7 @@ class Settings:
         for text, var in (
             ("Sonidos al empezar y terminar", self.sounds),
             ("Mostrar indicador mientras grabo", self.overlay),
-            ("Iniciar con Windows", self.autostart),
+            ("Iniciar al iniciar sesión" if MAC else "Iniciar con Windows", self.autostart),
         ):
             r += 1
             ttk.Checkbutton(f, text=text, variable=var).grid(row=r, column=0, columnspan=3, sticky="w", pady=2)
@@ -494,14 +575,16 @@ class App:
     def __init__(self):
         self.first_run = not os.path.exists(CONFIG_PATH)
         self.cfg = load_config()
-        self.status = "loading"
+        self.status = self.tray_status = "loading"
         self.events = queue.Queue()
         self.settings = None
         self.root = tk.Tk()
         self.root.withdraw()
         self.root.title(APP)
+        if MAC:
+            AppKit.NSApplication.sharedApplication().setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
         ensure_shortcuts()
-        self.root.iconbitmap(ICON_PATH)
+        set_window_icon(self.root)
         self.overlay = Overlay(self.root)
         self.engine = Engine(self)
         self.tray = pystray.Icon(
@@ -530,15 +613,23 @@ class App:
             except queue.Empty:
                 break
             fn(*args)
-        self.overlay.tick(self.cfg["overlay"], self.status, self.engine.level)
+        status = self.status
+        if status != self.tray_status:
+            self.tray_status = status
+            self.tray.icon = ICONS[status]
+            self.tray.title = f"{APP} · {STATUS_TEXT[status]}"
+        self.overlay.tick(self.cfg["overlay"], status, self.engine.level)
         self.root.after(33, self.pump)
 
     def set_status(self, status):
         self.status = status
-        self.tray.icon = ICONS[status]
-        self.tray.title = f"{APP} · {STATUS_TEXT[status]}"
 
     def notify(self, message):
+        if MAC:
+            subprocess.Popen(
+                ["osascript", "-e", "on run argv", "-e", f'display notification (item 1 of argv) with title "{APP}"', "-e", "end run", message]
+            )
+            return
         try:
             self.tray.notify(message, APP)
         except Exception:
@@ -549,6 +640,8 @@ class App:
             self.notify(f"Listo. Mantén pulsado «{self.cfg['hotkey']}» para dictar. Haz clic en el icono para configurarlo.")
 
     def open_settings(self):
+        if MAC:
+            AppKit.NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
         if self.settings:
             self.settings.win.lift()
             self.settings.win.focus_force()
@@ -571,12 +664,41 @@ class App:
             save_config(self.cfg)
             self.open_settings()
         self.tray.run_detached()
+        if MAC and not keyboard.start():
+            self.notify(
+                "Dicto necesita permiso de Monitorización de entrada y Accesibilidad. "
+                "Actívalo en Ajustes del Sistema › Privacidad y seguridad y vuelve a abrir Dicto."
+            )
         threading.Thread(target=self.engine.run, daemon=True).start()
         self.root.after(33, self.pump)
         self.root.mainloop()
 
 
+def set_window_icon(win):
+    if not MAC:
+        win.iconbitmap(ICON_PATH)
+
+
+def main_mac():
+    lock = open(os.path.join(CONFIG_DIR, "dicto.lock"), "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        subprocess.run(
+            [
+                "osascript",
+                "-e",
+                f'display dialog "Dicto ya está abierto. Búscalo en la barra de menús." with title "{APP}" buttons {{"OK"}} default button 1',
+            ]
+        )
+        return
+    App().run()
+
+
 def main():
+    if MAC:
+        main_mac()
+        return
     mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Local\\DictoSingleInstance")
     if ctypes.windll.kernel32.GetLastError() == 183:
         ctypes.windll.user32.MessageBoxW(None, "Dicto ya está abierto. Búscalo en la bandeja del sistema.", APP, 0x40)

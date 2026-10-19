@@ -1,9 +1,11 @@
 faster-whisper
 sounddevice
 numpy
-keyboard
+keyboard; sys_platform == "win32"
+pyobjc-framework-Quartz; sys_platform == "darwin"
+pyobjc-framework-Cocoa; sys_platform == "darwin"
 pyperclip
 pystray
 pillow
-nvidia-cublas-cu12
-nvidia-cudnn-cu12==9.*
+nvidia-cublas-cu12; sys_platform == "win32"
+nvidia-cudnn-cu12==9.*; sys_platform == "win32"
