@@ -97,7 +97,7 @@ python -m venv .venv
 
 Sin GPU NVIDIA puedes quitar antes `nvidia-cublas-cu12` y `nvidia-cudnn-cu12` de `requirements.txt`. Después, abre `dicto.bat`.
 
-Para generar el instalador: `pyinstaller --noconfirm packaging/dicto.spec` y después `iscc packaging\dicto.iss` ([Inno Setup](https://jrsoftware.org/isinfo.php)). El flujo `.github/workflows/build.yml` lo hace solo al subir una etiqueta `v*` y crea un borrador de *release* con `Dicto-Windows-Setup.exe`.
+Para generar el instalador: `pyinstaller --noconfirm packaging/dicto.spec` y después `iscc packaging\dicto.iss` ([Inno Setup](https://jrsoftware.org/isinfo.php)). El flujo `.github/workflows/build.yml` lo hace solo al subir una etiqueta `v*` y crea un borrador de *release* con `Dicto-Windows-Setup.exe`. El instalador no incluye CUDA: si Dicto detecta una GPU NVIDIA, descarga cuBLAS y cuDNN (~1,3 GB) la primera vez que se abre, en `%LOCALAPPDATA%\Dicto\cuda`, y mientras tanto funciona en CPU.
 
 </details>
 

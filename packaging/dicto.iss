@@ -36,6 +36,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\_internal"
 
+[UninstallDelete]
+Type: filesandordirs; Name: "{localappdata}\Dicto\cuda"
+
 [Files]
 Source: "..\dist\Dicto\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 

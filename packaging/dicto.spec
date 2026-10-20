@@ -6,8 +6,6 @@ ROOT = os.path.dirname(SPECPATH)
 ICON = os.path.join(ROOT, "dicto.ico")
 
 binaries = collect_dynamic_libs("ctranslate2")
-for pkg in ("nvidia.cublas", "nvidia.cudnn", "nvidia.cuda_nvrtc"):
-    binaries += collect_dynamic_libs(pkg)
 
 a = Analysis(
     [os.path.join(ROOT, "dicto.py")],

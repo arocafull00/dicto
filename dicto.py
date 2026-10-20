@@ -10,6 +10,8 @@ import sys
 import threading
 import time
 import tkinter as tk
+import urllib.request
+import zipfile
 
 if __name__ == "__main__" and sys.argv[1:] == ["--ui"]:
     import ui
@@ -39,6 +41,8 @@ PYTHONW = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
 LAUNCH = [sys.executable] if FROZEN else [PYTHONW, os.path.join(HERE, "dicto.py")]
 UI_COMMAND = [sys.executable, "--ui"] if FROZEN else [sys.executable, os.path.join(HERE, "ui.py")]
 PACKAGES = getattr(sys, "_MEIPASS", os.path.join(sys.prefix, "Lib", "site-packages"))
+CUDA_DIR = os.path.join(os.environ.get("LOCALAPPDATA", CONFIG_DIR), APP, "cuda")
+CUDA_PACKAGES = ["nvidia-cublas-cu12", "nvidia-cudnn-cu12", "nvidia-cuda-nvrtc-cu12"]
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 BUNDLE_ID = "io.github.arocafull00.dicto"
 APP_BUNDLE = os.path.expanduser(f"~/Applications/{APP}.app")
@@ -49,9 +53,39 @@ os.makedirs(CONFIG_DIR, exist_ok=True)
 if sys.stdout is None or sys.stderr is None:
     sys.stdout = sys.stderr = open(LOG_PATH, "a", encoding="utf-8", buffering=1)
 
-for d in glob.glob(os.path.join(PACKAGES, "nvidia", "*", "bin")):
-    os.add_dll_directory(d)
-    os.environ["PATH"] = d + os.pathsep + os.environ["PATH"]
+
+def add_cuda_dirs():
+    for d in glob.glob(os.path.join(PACKAGES, "nvidia", "*", "bin")) + glob.glob(os.path.join(CUDA_DIR, "nvidia", "*", "bin")):
+        if d not in os.environ["PATH"]:
+            os.add_dll_directory(d)
+            os.environ["PATH"] = d + os.pathsep + os.environ["PATH"]
+
+
+def cuda_ready():
+    return any(glob.glob(os.path.join(root, "nvidia", "cudnn", "bin", "cudnn64_*.dll")) for root in (PACKAGES, CUDA_DIR))
+
+
+def has_nvidia():
+    return os.path.exists(os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "nvcuda.dll"))
+
+
+def download_cuda():
+    tmp = CUDA_DIR + ".partial"
+    os.makedirs(tmp, exist_ok=True)
+    for name in CUDA_PACKAGES:
+        with urllib.request.urlopen(f"https://pypi.org/pypi/{name}/json") as r:
+            files = json.load(r)["urls"]
+        url = next(f["url"] for f in files if f["filename"].endswith("win_amd64.whl"))
+        wheel = os.path.join(tmp, name + ".whl")
+        urllib.request.urlretrieve(url, wheel)
+        with zipfile.ZipFile(wheel) as z:
+            z.extractall(tmp, [m for m in z.namelist() if m.startswith("nvidia/") and m.lower().endswith(".dll")])
+        os.remove(wheel)
+    os.replace(tmp, CUDA_DIR)
+
+
+if not MAC:
+    add_cuda_dirs()
 
 import numpy as np
 import pyperclip
@@ -280,7 +314,7 @@ def paste(text):
 
 
 def load_model(name):
-    if not MAC:
+    if not MAC and cuda_ready():
         try:
             return WhisperModel(name, device="cuda", compute_type="float16")
         except Exception as e:
@@ -301,6 +335,18 @@ class Engine:
         self.paused = False
         self.dirty = threading.Event()
         self.last_text = ""
+
+    def get_cuda(self):
+        self.app.notify("Tienes una GPU NVIDIA. Descargando el soporte de GPU (~1,3 GB) en segundo plano; mientras tanto Dicto usa la CPU.")
+        try:
+            download_cuda()
+        except Exception as e:
+            print(f"No se pudo descargar el soporte de GPU: {e}")
+            return
+        add_cuda_dirs()
+        self.model_name = None
+        self.dirty.set()
+        self.app.notify("Soporte de GPU listo. Dicto ya usa tu NVIDIA.")
 
     def configure(self):
         cfg = self.app.cfg
@@ -338,6 +384,8 @@ class Engine:
             self.app.notify(f"No se pudo iniciar: {e}")
             raise
         self.app.on_ready()
+        if not MAC and not cuda_ready() and has_nvidia():
+            threading.Thread(target=self.get_cuda, daemon=True).start()
         was_down = False
         while True:
             if self.dirty.is_set():
