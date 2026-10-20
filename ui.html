@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Dicto</title>
+<style>
+:root {
+  --bg: #f3f1ec;
+  --panel: #fbfaf7;
+  --card: #f6f4ef;
+  --field: #ffffff;
+  --line: #e6e2d9;
+  --line-strong: #d8d3c8;
+  --text: #1d1c1a;
+  --muted: #86827a;
+  --hover: #efece5;
+  --active: #e8e4da;
+  --hero: #161513;
+  --hero-text: #f6f4ef;
+  --hero-muted: #b3aea4;
+  --kbd: #ffffff;
+  --accent: #1d1c1a;
+  --accent-text: #fbfaf7;
+  --danger: #d23f3f;
+  --shadow: 0 1px 2px rgba(30, 25, 15, .05), 0 8px 24px rgba(30, 25, 15, .06);
+  --sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171716;
+    --panel: #1e1e1c;
+    --card: #242321;
+    --field: #2a2927;
+    --line: #2f2e2b;
+    --line-strong: #3b3a36;
+    --text: #edebe7;
+    --muted: #8f8b84;
+    --hover: #272624;
+    --active: #2e2d2a;
+    --hero: #0e0e0d;
+    --hero-text: #f1efea;
+    --hero-muted: #9a958c;
+    --kbd: #34332f;
+    --accent: #edebe7;
+    --accent-text: #1a1a19;
+    --danger: #ff6b6b;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+svg { flex: none; }
+.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+.side { width: 228px; flex: none; display: flex; flex-direction: column; padding: 22px 12px 14px; }
+.brand { display: flex; align-items: center; gap: 9px; padding: 0 10px 26px; font-size: 21px; font-weight: 700; letter-spacing: -.02em; }
+.brand svg { width: 22px; height: 22px; fill: currentColor; }
+nav { display: flex; flex-direction: column; gap: 2px; }
+nav button {
+  display: flex; align-items: center; gap: 12px; padding: 8px 10px;
+  border: 0; border-radius: 9px; background: none; text-align: left; font-size: 14.5px; font-weight: 500;
+}
+nav button:hover { background: var(--hover); }
+nav button.on { background: var(--active); }
+.side-foot { margin-top: auto; padding: 14px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); display: flex; gap: 10px; align-items: center; }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: #8a8f98; }
+.dot.idle { background: #2fb36d; }
+.dot.recording { background: #e5484d; box-shadow: 0 0 0 4px rgba(229, 72, 77, .18); }
+.dot.processing { background: #f5a524; }
+.dot.loading { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.side-foot b { display: block; font-size: 13px; font-weight: 600; }
+.side-foot small { display: block; color: var(--muted); font-size: 12px; }
+
+main {
+  flex: 1; min-width: 0; margin: 10px 10px 10px 0;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 20px;
+  overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
+}
+main::-webkit-scrollbar { width: 10px; }
+main::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 10px; border: 3px solid var(--panel); }
+.page { display: none; max-width: 1080px; padding: 40px 44px 56px; }
+.page.on { display: block; }
+h1 { margin: 0 0 6px; font-size: 26px; font-weight: 600; letter-spacing: -.02em; }
+.lead { margin: 0 0 28px; color: var(--muted); max-width: 560px; }
+
+.home-grid { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 22px; align-items: start; margin-top: 24px; }
+.hero {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 20px;
+  padding: 30px 32px; border-radius: 16px; background: var(--hero); color: var(--hero-text);
+  background-image: radial-gradient(circle at 92% 20%, rgba(255, 170, 90, .22), transparent 42%), radial-gradient(circle at 70% 120%, rgba(90, 140, 255, .18), transparent 45%);
+}
+.hero h2 { margin: 0 0 8px; font: 400 28px/1.15 var(--serif); letter-spacing: -.01em; }
+.hero h2 i { font-style: italic; }
+.hero p { margin: 0; color: var(--hero-muted); max-width: 520px; line-height: 1.75; }
+.hero kbd { color: var(--hero-text); background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .16); }
+.hero-btn { flex: none; padding: 9px 16px; border: 0; border-radius: 9px; background: #f3f1ec; color: #161513; font-weight: 600; font-size: 13.5px; }
+.hero-btn:hover { background: #fff; }
+
+kbd {
+  display: inline-block; padding: 1px 8px; margin: 0 1px; border-radius: 6px;
+  border: 1px solid var(--line-strong); border-bottom-width: 2px; background: var(--kbd);
+  font: 600 12.5px/1.6 var(--sans);
+}
+
+.stats { border: 1px solid var(--line); border-radius: 16px; background: var(--card); padding: 22px 24px; }
+.stat { display: flex; align-items: baseline; gap: 8px; }
+.stat + .stat { margin-top: 14px; }
+.stat strong { font: 400 30px/1 var(--serif); letter-spacing: -.02em; }
+.stat span { color: var(--muted); font-size: 14px; }
+
+.history { margin-top: 30px; }
+.group + .group { margin-top: 26px; }
+.group-title { margin: 0 0 10px 2px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.list { border: 1px solid var(--line); border-radius: 14px; background: var(--field); overflow: hidden; }
+.row { display: flex; align-items: center; gap: 22px; padding: 14px 16px 14px 18px; min-height: 52px; }
+.row + .row { border-top: 1px solid var(--line); }
+.row:hover { background: var(--hover); }
+.row time { width: 46px; flex: none; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.row p { flex: 1; min-width: 0; margin: 0; user-select: text; white-space: pre-wrap; overflow-wrap: anywhere; }
+.actions { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+.row:hover .actions, .actions:focus-within { opacity: 1; }
+.ghost { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: none; color: var(--muted); }
+.ghost:hover { background: var(--active); color: var(--text); }
+.ghost.done { color: #2fb36d; opacity: 1; }
+.ghost.del:hover { color: var(--danger); }
+.empty { padding: 48px 24px; text-align: center; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: 14px; }
+.empty b { display: block; margin-bottom: 4px; color: var(--text); font-weight: 600; }
+
+.card { border: 1px solid var(--line); border-radius: 16px; background: var(--field); max-width: 720px; }
+.card + .card, .card-title + .card { margin-top: 0; }
+.card-title { max-width: 720px; margin: 30px 0 10px 2px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.card-title:first-of-type { margin-top: 0; }
+.setting { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 20px; }
+.setting + .setting { border-top: 1px solid var(--line); }
+.setting .label b { display: block; font-weight: 600; }
+.setting .label small { display: block; color: var(--muted); font-size: 13px; }
+.control { display: flex; align-items: center; gap: 10px; flex: none; }
+
+.select { position: relative; width: 300px; }
+.select select {
+  width: 100%; appearance: none; -webkit-appearance: none; padding: 8px 34px 8px 12px;
+  border: 1px solid var(--line-strong); border-radius: 9px; background: var(--field); outline: none; cursor: pointer;
+}
+.select select:hover { background: var(--hover); }
+.select select:focus-visible, .field:focus { border-color: var(--text); }
+.select::after {
+  content: ""; position: absolute; right: 14px; top: 50%; width: 6px; height: 6px; margin-top: -5px;
+  border: solid var(--muted); border-width: 0 1.6px 1.6px 0; transform: rotate(45deg); pointer-events: none;
+}
+.select option { background: var(--field); color: var(--text); }
+
+.btn { padding: 8px 15px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--field); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+.btn:hover { background: var(--hover); }
+.btn:disabled { opacity: .6; cursor: default; }
+.btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.btn.primary:hover { opacity: .9; }
+.btn.danger { color: var(--danger); }
+.btn.danger.armed { background: var(--danger); border-color: var(--danger); color: #fff; }
+.keys { display: flex; gap: 4px; }
+.keys.wait kbd { animation: pulse 1.2s ease-in-out infinite; }
+
+.switch { position: relative; width: 40px; height: 24px; flex: none; }
+.switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; z-index: 1; }
+.switch span { position: absolute; inset: 0; border-radius: 99px; background: var(--line-strong); transition: background .18s; }
+.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform .18s; }
+.switch input:checked + span { background: #2fb36d; }
+.switch input:checked + span::after { transform: translateX(16px); }
+.switch input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 2px; }
+
+.add { display: flex; gap: 10px; max-width: 720px; }
+.field { flex: 1; padding: 9px 13px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--field); outline: none; user-select: text; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; max-width: 720px; margin-top: 22px; }
+.chip { display: flex; align-items: center; gap: 4px; padding: 5px 6px 5px 13px; border: 1px solid var(--line); border-radius: 99px; background: var(--field); font-weight: 500; }
+.chip button { display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 50%; background: none; color: var(--muted); }
+.chip button:hover { background: var(--active); color: var(--danger); }
+.chip .icon { width: 13px; height: 13px; stroke-width: 2.2; }
+.chips .empty { width: 100%; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none;
+  display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 10px;
+  background: var(--accent); color: var(--accent-text); font-weight: 500; font-size: 13.5px; box-shadow: var(--shadow);
+  transition: opacity .18s, transform .18s;
+}
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.toast .icon { width: 16px; height: 16px; stroke-width: 2.2; }
+
+@media (max-width: 960px) {
+  .home-grid { grid-template-columns: 1fr; }
+  .stats { display: flex; gap: 28px; flex-wrap: wrap; }
+  .stat + .stat { margin-top: 0; }
+  .side { width: 196px; }
+  .page { padding: 32px 30px 48px; }
+  .select { width: 240px; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v11h13V9"/><path d="M10 20v-6h4v6"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/><path d="M9 7.5h6"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+</svg>
+
+<aside class="side">
+  <div class="brand">
+    <svg viewBox="0 0 24 24"><rect x="2" y="8" width="3" height="8" rx="1.5"/><rect x="7" y="4" width="3" height="16" rx="1.5"/><rect x="12" y="7" width="3" height="10" rx="1.5"/><rect x="17" y="10" width="3" height="4" rx="1.5"/></svg>
+    Dicto
+  </div>
+  <nav>
+    <button data-page="home"><svg class="icon"><use href="#i-home"/></svg>Inicio</button>
+    <button data-page="dictionary"><svg class="icon"><use href="#i-book"/></svg>Diccionario</button>
+    <button data-page="settings"><svg class="icon"><use href="#i-sliders"/></svg>Ajustes</button>
+  </nav>
+  <div class="side-foot">
+    <span class="dot loading" id="dot"></span>
+    <div><b id="stateLabel">Cargando…</b><small id="stateDetail"></small></div>
+  </div>
+</aside>
+
+<main>
+  <section class="page" id="page-home">
+    <h1 id="greeting">Hola</h1>
+    <div class="home-grid">
+      <div>
+        <div class="hero">
+          <div>
+            <h2>Dicta en <i>cualquier</i> app</h2>
+            <p id="heroText"></p>
+          </div>
+          <button class="hero-btn" data-goto="settings">Cambiar atajo</button>
+        </div>
+        <div class="history" id="history"></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><strong id="statWords">0</strong><span>palabras</span></div>
+        <div class="stat"><strong id="statWpm">—</strong><span>palabras/min</span></div>
+        <div class="stat"><strong id="statStreak">0</strong><span id="statStreakLabel">días seguidos</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="page-dictionary">
+    <h1>Diccionario</h1>
+    <p class="lead">Nombres, marcas o términos técnicos que Dicto suele escribir mal. Se le pasan a Whisper como pista para que los reconozca.</p>
+    <form class="add" id="dictForm">
+      <input class="field" id="dictInput" placeholder="Añade una palabra o un nombre…" autocomplete="off">
+      <button class="btn primary" type="submit">Añadir</button>
+    </form>
+    <div class="chips" id="dictList"></div>
+  </section>
+
+  <section class="page" id="page-settings">
+    <h1>Ajustes</h1>
+    <p class="lead">Los cambios se guardan al momento.</p>
+
+    <div class="card-title">Dictado</div>
+    <div class="card">
+      <div class="setting">
+        <div class="label"><b>Atajo</b><small id="hotkeyHint">Mantén pulsado para dictar</small></div>
+        <div class="control"><div class="keys" id="hotkeyKeys"></div><button class="btn" id="captureBtn">Cambiar</button></div>
+      </div>
+      <div class="setting">
+        <div class="label"><b>Modo</b><small>Cómo se usa el atajo</small></div>
+        <div class="control"><div class="select"><select data-key="mode"></select></div></div>
+      </div>
+      <div class="setting">
+        <div class="label"><b>Idioma</b><small>Idioma en el que hablas</small></div>
+        <div class="control"><div class="select"><select data-key="language"></select></div></div>
+      </div>
+      <div class="setting">
+        <div class="label"><b>Modelo</b><small>Más grande es más preciso, pero más lento</small></div>
+        <div class="control"><div class="select"><select data-key="model"></select></div></div>
+      </div>
+      <div class="setting">
+        <div class="label"><b>Micrófono</b><small>Dispositivo de entrada</small></div>
+        <div class="control"><div class="select"><select data-key="device"></select></div></div>
+      </div>
+    </div>
+
+    <div class="card-title">General</div>
+    <div class="card">
+      <div class="setting">
+        <div class="label"><b>Sonidos</b><small>Un aviso al empezar y al terminar de grabar</small></div>
+        <label class="switch"><input type="checkbox" data-key="sounds"><span></span></label>
+      </div>
+      <div class="setting">
+        <div class="label"><b>Indicador en pantalla</b><small>Muestra el nivel de voz mientras grabas</small></div>
+        <label class="switch"><input type="checkbox" data-key="overlay"><span></span></label>
+      </div>
+      <div class="setting">
+        <div class="label"><b id="autostartLabel">Iniciar con Windows</b><small>Abre Dicto en segundo plano al encender</small></div>
+        <label class="switch"><input type="checkbox" data-key="autostart"><span></span></label>
+      </div>
+    </div>
+
+    <div class="card-title">Historial</div>
+    <div class="card">
+      <div class="setting">
+        <div class="label"><b>Borrar transcripciones</b><small>Se guardan las últimas 500 en este equipo</small></div>
+        <button class="btn danger" id="clearBtn">Borrar todo</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"><svg class="icon"><use href="#i-check"/></svg><span></span></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const state = { cfg: {}, options: {}, history: { words: 0, seconds: 0, items: [] }, mac: false, capturing: false };
+
+const dicto = {
+  ready: false,
+  queue: [],
+  receive(msg) {
+    if (this.ready) handle(msg);
+    else this.queue.push(msg);
+  },
+};
+
+function handle(msg) {
+  if (msg.type === "status") setStatus(msg.status);
+  else if (msg.type === "entry") {
+    state.history.items.push(msg.entry);
+    state.history.words = msg.words;
+    state.history.seconds = msg.seconds;
+    renderHome();
+  } else if (msg.type === "history") {
+    state.history = msg.history;
+    renderHome();
+  } else if (msg.type === "cfg") {
+    state.cfg = msg.cfg;
+    state.capturing = false;
+    renderAll();
+  } else if (msg.type === "focus") go(msg.page);
+}
+
+function el(tag, attrs = {}, ...children) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  n.append(...children);
+  return n;
+}
+
+function icon(name) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "icon");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", "#i-" + name);
+  svg.append(use);
+  return svg;
+}
+
+let toastTimer;
+function toast(text) {
+  const t = $("#toast");
+  t.querySelector("span").textContent = text;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 1600);
+}
+
+function go(page) {
+  $$(".page").forEach(p => p.classList.toggle("on", p.id === "page-" + page));
+  $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.page === page));
+  $("main").scrollTop = 0;
+}
+
+function setStatus(s) {
+  $("#dot").className = "dot " + s.state;
+  $("#stateLabel").textContent = s.label;
+  $("#stateDetail").textContent = s.detail;
+}
+
+function keyName(k) {
+  return k.charAt(0).toUpperCase() + k.slice(1);
+}
+
+function hotkeyKbds(hotkey) {
+  return hotkey.split("+").map(k => el("kbd", {}, keyName(k.trim())));
+}
+
+const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+function dayLabel(d) {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (dayKey(d) === dayKey(today)) return "Hoy";
+  if (dayKey(d) === dayKey(yesterday)) return "Ayer";
+  const opts = { weekday: "long", day: "numeric", month: "long" };
+  if (d.getFullYear() !== today.getFullYear()) opts.year = "numeric";
+  return d.toLocaleDateString("es-ES", opts);
+}
+
+function streak(items) {
+  const days = new Set(items.map(i => dayKey(new Date(i.t * 1000))));
+  const d = new Date();
+  if (!days.has(dayKey(d))) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while (days.has(dayKey(d))) {
+    n++;
+    d.setDate(d.getDate() - 1);
+  }
+  return n;
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 6 ? "Buenas noches" : h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches";
+}
+
+function renderHero() {
+  const p = $("#heroText");
+  const keys = hotkeyKbds(state.cfg.hotkey || "");
+  p.replaceChildren();
+  if (state.cfg.mode === "toggle") p.append("Pulsa ", ...keys, " para empezar a dictar y otra vez para terminar. El texto se pega donde tengas el cursor.");
+  else p.append("Mantén pulsado ", ...keys, " mientras hablas. Al soltar, el texto se pega donde tengas el cursor.");
+}
+
+function renderHome() {
+  const { words, seconds, items } = state.history;
+  $("#greeting").textContent = greeting();
+  $("#statWords").textContent = new Intl.NumberFormat("es-ES", { notation: "compact", maximumFractionDigits: 1 }).format(words);
+  $("#statWpm").textContent = seconds > 0 ? Math.round(words / (seconds / 60)) : "—";
+  const s = streak(items);
+  $("#statStreak").textContent = s;
+  $("#statStreakLabel").textContent = s === 1 ? "día seguido" : "días seguidos";
+
+  const box = $("#history");
+  box.replaceChildren();
+  if (!items.length) {
+    box.append(el("div", { class: "empty" }, el("b", {}, "Aún no hay transcripciones"), "Dicta algo y aparecerá aquí para que puedas copiarlo cuando quieras."));
+    return;
+  }
+  let list, current;
+  for (const item of [...items].sort((a, b) => b.t - a.t)) {
+    const d = new Date(item.t * 1000);
+    if (dayKey(d) !== current) {
+      current = dayKey(d);
+      list = el("div", { class: "list" });
+      box.append(el("div", { class: "group" }, el("div", { class: "group-title" }, dayLabel(d)), list));
+    }
+    const copyBtn = el("button", { class: "ghost", title: "Copiar" }, icon("copy"));
+    copyBtn.addEventListener("click", () => {
+      pywebview.api.copy(item.text);
+      copyBtn.replaceChildren(icon("check"));
+      copyBtn.classList.add("done");
+      toast("Copiado al portapapeles");
+      setTimeout(() => {
+        copyBtn.replaceChildren(icon("copy"));
+        copyBtn.classList.remove("done");
+      }, 1400);
+    });
+    const delBtn = el("button", { class: "ghost del", title: "Eliminar" }, icon("trash"));
+    delBtn.addEventListener("click", () => {
+      state.history.items = state.history.items.filter(i => i.t !== item.t);
+      pywebview.api.delete(item.t);
+      renderHome();
+    });
+    list.append(el("div", { class: "row" },
+      el("time", {}, d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })),
+      el("p", {}, item.text),
+      el("div", { class: "actions" }, copyBtn, delBtn)));
+  }
+}
+
+function terms() {
+  return (state.cfg.vocabulary || "").split(",").map(t => t.trim()).filter(Boolean);
+}
+
+function setTerms(list) {
+  apply({ vocabulary: list.join(", ") });
+  renderDictionary();
+}
+
+function renderDictionary() {
+  const box = $("#dictList");
+  box.replaceChildren();
+  const list = terms();
+  if (!list.length) {
+    box.append(el("div", { class: "empty" }, el("b", {}, "Tu diccionario está vacío"), "Añade nombres propios o palabras que Dicto no escriba bien."));
+    return;
+  }
+  list.forEach((t, i) => {
+    const rm = el("button", { title: "Quitar" }, icon("x"));
+    rm.addEventListener("click", () => setTerms(list.filter((_, j) => j !== i)));
+    box.append(el("span", { class: "chip" }, t, rm));
+  });
+}
+
+function fillSelect(key, pairs, value) {
+  const sel = $(`select[data-key="${key}"]`);
+  sel.replaceChildren(...pairs.map(([label, v]) => el("option", { value: v }, label)));
+  sel.value = value;
+}
+
+function renderSettings() {
+  const { cfg, options } = state;
+  const keys = $("#hotkeyKeys");
+  keys.classList.toggle("wait", state.capturing);
+  keys.replaceChildren(...(state.capturing ? [el("kbd", {}, "Pulsa la combinación…")] : hotkeyKbds(cfg.hotkey)));
+  $("#captureBtn").disabled = state.capturing;
+  $("#hotkeyHint").textContent = cfg.mode === "toggle" ? "Pulsa para empezar y para terminar" : "Mantén pulsado para dictar";
+  fillSelect("mode", options.modes, cfg.mode);
+  fillSelect("language", options.languages, cfg.language);
+  fillSelect("model", options.models, cfg.model);
+  const mics = [[options.defaultMic, ""], ...options.mics.map(m => [m, m])];
+  if (cfg.device && !options.mics.includes(cfg.device)) mics.push([cfg.device, cfg.device]);
+  fillSelect("device", mics, cfg.device);
+  for (const input of $$('input[type="checkbox"][data-key]')) input.checked = !!cfg[input.dataset.key];
+  $("#autostartLabel").textContent = state.mac ? "Abrir al iniciar sesión" : "Iniciar con Windows";
+}
+
+function renderAll() {
+  renderHome();
+  renderHero();
+  renderDictionary();
+  renderSettings();
+}
+
+function apply(changes) {
+  Object.assign(state.cfg, changes);
+  pywebview.api.apply(state.cfg);
+}
+
+$$("nav button").forEach(b => b.addEventListener("click", () => go(b.dataset.page)));
+$$("[data-goto]").forEach(b => b.addEventListener("click", () => go(b.dataset.goto)));
+
+$$("select[data-key]").forEach(sel => sel.addEventListener("change", () => {
+  apply({ [sel.dataset.key]: sel.value });
+  renderHero();
+  renderSettings();
+  toast("Guardado");
+}));
+
+$$('input[type="checkbox"][data-key]').forEach(input => input.addEventListener("change", () => {
+  apply({ [input.dataset.key]: input.checked });
+  toast("Guardado");
+}));
+
+$("#captureBtn").addEventListener("click", () => {
+  state.capturing = true;
+  renderSettings();
+  pywebview.api.capture();
+});
+
+let clearTimer;
+$("#clearBtn").addEventListener("click", e => {
+  const b = e.currentTarget;
+  if (!b.classList.contains("armed")) {
+    b.classList.add("armed");
+    b.textContent = "¿Seguro? Pulsa otra vez";
+    clearTimer = setTimeout(() => {
+      b.classList.remove("armed");
+      b.textContent = "Borrar todo";
+    }, 3000);
+    return;
+  }
+  clearTimeout(clearTimer);
+  b.classList.remove("armed");
+  b.textContent = "Borrar todo";
+  state.history.items = [];
+  pywebview.api.clear();
+  renderHome();
+  toast("Historial borrado");
+});
+
+$("#dictForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const input = $("#dictInput");
+  const list = terms();
+  const added = input.value.split(",").map(t => t.trim()).filter(t => t && !list.some(x => x.toLowerCase() === t.toLowerCase()));
+  input.value = "";
+  if (!added.length) return;
+  setTerms([...list, ...added]);
+  toast(added.length === 1 ? "Palabra añadida" : "Palabras añadidas");
+});
+
+window.addEventListener("pywebviewready", async () => {
+  Object.assign(state, await pywebview.api.init());
+  setStatus(state.status);
+  renderAll();
+  go(state.page);
+  dicto.ready = true;
+  dicto.queue.splice(0).forEach(handle);
+});
+
+setInterval(() => $("#greeting").textContent = greeting(), 60000);
+</script>
+</body>
+</html>

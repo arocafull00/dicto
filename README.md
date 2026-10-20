@@ -30,7 +30,8 @@ Dicto vive en la bandeja del sistema (Windows) o en la barra de menús (macOS) y
 - 🔁 **Dos modos.** *Mantener pulsado* o *pulsar para empezar y parar*, para dictados largos.
 - ⚡ **Rápido con GPU.** En Windows usa CUDA si tienes una NVIDIA; si no (y siempre en Mac), funciona en CPU sin tocar nada.
 - 🌍 **Multilingüe.** Español, inglés, catalán, portugués, francés, alemán, italiano o detección automática.
-- 📚 **Vocabulario propio.** Enséñale nombres, marcas o términos técnicos que suele escribir mal.
+- 📚 **Diccionario propio.** Enséñale nombres, marcas o términos técnicos que suele escribir mal.
+- 🗂️ **Historial.** Tus últimas 500 transcripciones, agrupadas por día y listas para copiar, con estadísticas de palabras, velocidad y racha.
 - 🟢 **Indicador flotante.** Una pequeña píldora muestra el nivel del micrófono mientras grabas y avisa cuando transcribe.
 - 🔔 **Sonidos sutiles** al empezar y terminar de grabar.
 - 📋 **Respeta tu portapapeles.** Pega el texto y después restaura lo que tenías copiado.
@@ -67,6 +68,11 @@ Elige tu sistema:
 
 ### 🪟 Windows
 
+Descarga **[Dicto-Windows-Setup.exe](https://github.com/arocafull00/dicto/releases/latest/download/Dicto-Windows-Setup.exe)**, ábrelo y pulsa *Siguiente*. No hace falta instalar Python ni tener permisos de administrador. Si Windows muestra «Windows protegió su PC», pulsa *Más información* → *Ejecutar de todas formas*.
+
+<details>
+<summary><b>Instalar desde el código fuente</b></summary>
+
 **Requisitos:** Windows 10/11, [Python 3.10 o superior](https://www.python.org/downloads/) (marca *Add python.exe to PATH* al instalarlo) y un micrófono. Una GPU NVIDIA es opcional pero muy recomendable.
 
 1. Descarga el proyecto: botón verde **Code → Download ZIP** y descomprímelo, o con Git:
@@ -79,8 +85,7 @@ Elige tu sistema:
 
 ¡Y ya está! A partir de ahí, abre Dicto desde el acceso directo del menú Inicio o del escritorio.
 
-<details>
-<summary><b>Instalación manual en Windows</b></summary>
+**Instalación manual:**
 
 ```bash
 python -m venv .venv
@@ -91,6 +96,8 @@ python -m venv .venv
 ```
 
 Sin GPU NVIDIA puedes quitar antes `nvidia-cublas-cu12` y `nvidia-cudnn-cu12` de `requirements.txt`. Después, abre `dicto.bat`.
+
+Para generar el instalador: `pyinstaller --noconfirm packaging/dicto.spec` y después `iscc packaging\dicto.iss` ([Inno Setup](https://jrsoftware.org/isinfo.php)). El flujo `.github/workflows/build.yml` lo hace solo al subir una etiqueta `v*` y crea un borrador de *release* con `Dicto-Windows-Setup.exe`.
 
 </details>
 
@@ -144,7 +151,7 @@ La primera vez, macOS pedirá tres permisos para **Dicto** (en algunos sistemas 
 
 1. **Se descarga el modelo de voz** desde Hugging Face, una sola vez. Con el modelo Turbo son unos **1,6 GB**, así que puede tardar varios minutos: mientras tanto el icono se ve ⚪ gris. Cuando se pone 🔵 azul, ya puedes dictar.
 2. Se crean los accesos directos: menú Inicio y escritorio en Windows, `~/Applications/Dicto.app` en Mac.
-3. Se abre la ventana de configuración para que ajustes el atajo, el idioma y el micrófono.
+3. Se abre la ventana de Dicto en *Ajustes* para que elijas el atajo, el idioma y el micrófono.
 
 > [!NOTE]
 > Los modelos se guardan en `~/.cache/huggingface` (`%USERPROFILE%\.cache\huggingface` en Windows). Si cambias de modelo en la configuración, el nuevo se descarga la primera vez que lo uses. Después, Dicto funciona sin internet.
@@ -154,21 +161,24 @@ La primera vez, macOS pedirá tres permisos para **Dicto** (en algunos sistemas 
 
 ## 🎛️ Configuración
 
-Haz clic en el icono de la bandeja (Windows) o de la barra de menús (Mac) para abrir la configuración:
+Haz clic en el icono de la bandeja (Windows) o de la barra de menús (Mac) para abrir Dicto. La ventana tiene tres secciones y sigue el tema claro u oscuro del sistema:
+
+- **Inicio:** tus estadísticas (palabras dictadas, palabras por minuto y días seguidos) y el historial de transcripciones agrupado por día. Pasa el ratón por una para copiarla o borrarla.
+- **Diccionario:** nombres, marcas o términos que Whisper debe reconocer mejor.
+- **Ajustes:** todo lo demás. Los cambios se guardan al momento.
 
 | Opción | Descripción |
 | --- | --- |
-| **Atajo** | Cualquier tecla o combinación. Pulsa *Cambiar…* y presiónala. |
+| **Atajo** | Cualquier tecla o combinación. Pulsa *Cambiar* y presiónala. |
 | **Modo** | *Mantener pulsado* o *Pulsar para empezar y parar*. |
 | **Idioma** | Idioma del dictado o detección automática. |
 | **Modelo** | Turbo (recomendado), Large v3, Medium, Small o Base. |
 | **Micrófono** | El predeterminado del sistema o uno concreto. |
-| **Vocabulario** | Términos separados por comas que Whisper debe reconocer mejor. |
 | **Opciones** | Sonidos, indicador flotante e inicio automático al encender. |
 
 Desde el menú del icono también puedes **copiar la última transcripción** o salir.
 
-Los ajustes se guardan en `config.json` y el registro de actividad en `dicto.log`, dentro de:
+Los ajustes se guardan en `config.json`, el historial en `history.json` y el registro de actividad en `dicto.log`, dentro de:
 
 - **Windows:** `%APPDATA%\Dicto\`
 - **macOS:** `~/Library/Application Support/Dicto/`

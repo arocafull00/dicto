@@ -10,9 +10,14 @@ import sys
 import threading
 import time
 import tkinter as tk
-from tkinter import ttk
+
+if __name__ == "__main__" and sys.argv[1:] == ["--ui"]:
+    import ui
+
+    ui.main()
 
 MAC = sys.platform == "darwin"
+FROZEN = getattr(sys, "frozen", False)
 if MAC:
     import fcntl
 else:
@@ -26,9 +31,14 @@ if MAC:
 else:
     CONFIG_DIR = os.path.join(os.environ["APPDATA"], APP)
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+HISTORY_PATH = os.path.join(CONFIG_DIR, "history.json")
+HISTORY_LIMIT = 500
 LOG_PATH = os.path.join(CONFIG_DIR, "dicto.log")
 ICON_PATH = os.path.join(HERE, "dicto.ico")
 PYTHONW = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+LAUNCH = [sys.executable] if FROZEN else [PYTHONW, os.path.join(HERE, "dicto.py")]
+UI_COMMAND = [sys.executable, "--ui"] if FROZEN else [sys.executable, os.path.join(HERE, "ui.py")]
+PACKAGES = getattr(sys, "_MEIPASS", os.path.join(sys.prefix, "Lib", "site-packages"))
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 BUNDLE_ID = "io.github.arocafull00.dicto"
 APP_BUNDLE = os.path.expanduser(f"~/Applications/{APP}.app")
@@ -39,7 +49,7 @@ os.makedirs(CONFIG_DIR, exist_ok=True)
 if sys.stdout is None or sys.stderr is None:
     sys.stdout = sys.stderr = open(LOG_PATH, "a", encoding="utf-8", buffering=1)
 
-for d in glob.glob(os.path.join(sys.prefix, "Lib", "site-packages", "nvidia", "*", "bin")):
+for d in glob.glob(os.path.join(PACKAGES, "nvidia", "*", "bin")):
     os.add_dll_directory(d)
     os.environ["PATH"] = d + os.pathsep + os.environ["PATH"]
 
@@ -55,9 +65,6 @@ if MAC:
     import mackeys as keyboard
 else:
     import keyboard
-
-TITLE_FONT = ("Helvetica Neue", 18, "bold") if MAC else ("Segoe UI Semibold", 16)
-HOTKEY_FONT = ("Helvetica Neue", 13, "bold") if MAC else ("Segoe UI Semibold", 10)
 
 DEFAULTS = {
     "hotkey": "right option" if MAC else "right ctrl",
@@ -115,6 +122,19 @@ def save_config(cfg):
         json.dump(cfg, f, ensure_ascii=False, indent=2)
 
 
+def load_history():
+    try:
+        with open(HISTORY_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {"words": 0, "seconds": 0.0, "items": []}
+
+
+def save_history(history):
+    with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False)
+
+
 def make_icon(color, size=64):
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -142,7 +162,7 @@ def set_autostart(on):
         return
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
         if on:
-            winreg.SetValueEx(k, APP, 0, winreg.REG_SZ, f'"{PYTHONW}" "{os.path.join(HERE, "dicto.py")}"')
+            winreg.SetValueEx(k, APP, 0, winreg.REG_SZ, subprocess.list2cmdline(LAUNCH))
         else:
             try:
                 winreg.DeleteValue(k, APP)
@@ -187,6 +207,8 @@ def ensure_mac_app():
 def ensure_shortcuts():
     if MAC:
         ensure_mac_app()
+        return
+    if FROZEN:
         return
     if not os.path.exists(ICON_PATH):
         make_icon(COLORS["idle"], 256).save(ICON_PATH, sizes=[(16, 16), (32, 32), (48, 48), (256, 256)])
@@ -372,6 +394,7 @@ class Engine:
                 time.sleep(0.02)
             paste(text + " ")
             self.last_text = text
+            self.app.post(self.app.add_history, text, len(audio) / RATE)
             print(text)
         self.app.set_status("idle")
 
@@ -437,147 +460,15 @@ class Overlay:
                 c.create_oval(cx - r, h / 2 - r, cx + r, h / 2 + r, fill=COLORS["processing"] if on else "#6b6b70", outline="")
 
 
-class Settings:
-    def __init__(self, app):
-        self.app = app
-        cfg = app.cfg
-        win = self.win = tk.Toplevel(app.root)
-        win.title("Dicto · Configuración")
-        set_window_icon(win)
-        win.resizable(False, False)
-        win.protocol("WM_DELETE_WINDOW", self.close)
-
-        self.hotkey = tk.StringVar(value=cfg["hotkey"])
-        self.mode = tk.StringVar(value=key_for(MODES, cfg["mode"]))
-        self.language = tk.StringVar(value=key_for(LANGUAGES, cfg["language"]))
-        self.model = tk.StringVar(value=key_for(MODELS, cfg["model"]))
-        self.device = tk.StringVar(value=cfg["device"] or DEFAULT_MIC)
-        self.vocabulary = tk.StringVar(value=cfg["vocabulary"])
-        self.sounds = tk.BooleanVar(value=cfg["sounds"])
-        self.overlay = tk.BooleanVar(value=cfg["overlay"])
-        self.autostart = tk.BooleanVar(value=cfg["autostart"])
-
-        f = ttk.Frame(win, padding=(22, 18, 22, 18))
-        f.grid(sticky="nsew")
-        f.columnconfigure(1, weight=1)
-
-        ttk.Label(f, text="Dicto", font=TITLE_FONT).grid(row=0, column=0, columnspan=3, sticky="w")
-        self.status = ttk.Label(f, foreground="#6b6b70")
-        self.status.grid(row=1, column=0, columnspan=3, sticky="w", pady=(0, 14))
-
-        r = 2
-        ttk.Label(f, text="Atajo").grid(row=r, column=0, sticky="w", pady=5, padx=(0, 14))
-        ttk.Label(f, textvariable=self.hotkey, font=HOTKEY_FONT).grid(row=r, column=1, sticky="w")
-        self.capture_btn = ttk.Button(f, text="Cambiar…", command=self.capture)
-        self.capture_btn.grid(row=r, column=2, sticky="e")
-
-        for label, var, values in (
-            ("Modo", self.mode, list(MODES)),
-            ("Idioma", self.language, list(LANGUAGES)),
-            ("Modelo", self.model, list(MODELS)),
-            ("Micrófono", self.device, [DEFAULT_MIC] + input_devices()),
-        ):
-            r += 1
-            ttk.Label(f, text=label).grid(row=r, column=0, sticky="w", pady=5, padx=(0, 14))
-            ttk.Combobox(f, textvariable=var, values=values, state="readonly", width=40).grid(
-                row=r, column=1, columnspan=2, sticky="ew"
-            )
-
-        r += 1
-        ttk.Label(f, text="Vocabulario").grid(row=r, column=0, sticky="w", pady=(5, 0), padx=(0, 14))
-        ttk.Entry(f, textvariable=self.vocabulary, width=42).grid(row=r, column=1, columnspan=2, sticky="ew", pady=(5, 0))
-        r += 1
-        ttk.Label(f, text="Nombres o términos que suele escribir mal, separados por comas", foreground="#6b6b70").grid(
-            row=r, column=1, columnspan=2, sticky="w", pady=(2, 10)
-        )
-
-        for text, var in (
-            ("Sonidos al empezar y terminar", self.sounds),
-            ("Mostrar indicador mientras grabo", self.overlay),
-            ("Iniciar al iniciar sesión" if MAC else "Iniciar con Windows", self.autostart),
-        ):
-            r += 1
-            ttk.Checkbutton(f, text=text, variable=var).grid(row=r, column=0, columnspan=3, sticky="w", pady=2)
-
-        r += 1
-        buttons = ttk.Frame(f)
-        buttons.grid(row=r, column=0, columnspan=3, sticky="e", pady=(18, 0))
-        ttk.Button(buttons, text="Cancelar", command=self.close).pack(side="right")
-        ttk.Button(buttons, text="Guardar", command=self.save, default="active").pack(side="right", padx=(0, 8))
-
-        self.refresh_status()
-        win.update_idletasks()
-        x = (win.winfo_screenwidth() - win.winfo_width()) // 2
-        y = (win.winfo_screenheight() - win.winfo_height()) // 3
-        win.geometry(f"+{x}+{y}")
-        win.lift()
-        win.focus_force()
-
-    def refresh_status(self):
-        if not self.win.winfo_exists():
-            return
-        device = "GPU" if self.app.engine.model is not None and self.app.engine.model.model.device == "cuda" else "CPU"
-        text = STATUS_TEXT[self.app.status]
-        if self.app.status != "loading":
-            text += f" · {self.app.engine.model_name} en {device}"
-        self.status.configure(text=text)
-        self.win.after(500, self.refresh_status)
-
-    def capture(self):
-        self.app.engine.paused = True
-        self.capture_btn.state(["disabled"])
-        self.hotkey.set("Pulsa la combinación…")
-
-        def worker():
-            hk = keyboard.read_hotkey(suppress=False)
-            while hotkey_down(hk):
-                time.sleep(0.02)
-            self.app.post(self.captured, hk)
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def captured(self, hk):
-        self.hotkey.set(hk)
-        self.capture_btn.state(["!disabled"])
-        self.app.engine.paused = False
-
-    def save(self):
-        hk = self.hotkey.get()
-        if hk.startswith("Pulsa"):
-            return
-        mic = self.device.get()
-        self.app.apply(
-            {
-                "hotkey": hk,
-                "mode": MODES[self.mode.get()],
-                "language": LANGUAGES[self.language.get()],
-                "model": MODELS[self.model.get()],
-                "device": "" if mic == DEFAULT_MIC else mic,
-                "vocabulary": self.vocabulary.get(),
-                "sounds": self.sounds.get(),
-                "overlay": self.overlay.get(),
-                "autostart": self.autostart.get(),
-            }
-        )
-        self.close()
-
-    def close(self):
-        self.app.engine.paused = False
-        self.win.destroy()
-        self.app.settings = None
-
-
-def key_for(mapping, value):
-    return next((k for k, v in mapping.items() if v == value), next(iter(mapping)))
-
-
 class App:
     def __init__(self):
         self.first_run = not os.path.exists(CONFIG_PATH)
         self.cfg = load_config()
+        self.history = load_history()
         self.status = self.tray_status = "loading"
+        self.ui_status = None
         self.events = queue.Queue()
-        self.settings = None
+        self.ui = None
         self.root = tk.Tk()
         self.root.withdraw()
         self.root.title(APP)
@@ -592,7 +483,8 @@ class App:
             ICONS["loading"],
             f"{APP} · {STATUS_TEXT['loading']}",
             menu=pystray.Menu(
-                pystray.MenuItem("Configuración…", lambda: self.post(self.open_settings), default=True),
+                pystray.MenuItem("Abrir Dicto", lambda: self.post(self.open_window, "home"), default=True),
+                pystray.MenuItem("Ajustes…", lambda: self.post(self.open_window, "settings")),
                 pystray.MenuItem(
                     "Copiar última transcripción",
                     lambda: pyperclip.copy(self.engine.last_text),
@@ -619,6 +511,10 @@ class App:
             self.tray.icon = ICONS[status]
             self.tray.title = f"{APP} · {STATUS_TEXT[status]}"
         self.overlay.tick(self.cfg["overlay"], status, self.engine.level)
+        info = self.status_info()
+        if info != self.ui_status:
+            self.ui_status = info
+            self.send({"type": "status", "status": info})
         self.root.after(33, self.pump)
 
     def set_status(self, status):
@@ -639,14 +535,101 @@ class App:
         if self.first_run:
             self.notify(f"Listo. Mantén pulsado «{self.cfg['hotkey']}» para dictar. Haz clic en el icono para configurarlo.")
 
-    def open_settings(self):
-        if MAC:
-            AppKit.NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
-        if self.settings:
-            self.settings.win.lift()
-            self.settings.win.focus_force()
+    def status_info(self):
+        model = self.engine.model
+        if self.status == "loading" or model is None:
+            detail = self.cfg["model"]
         else:
-            self.settings = Settings(self)
+            detail = f"{self.engine.model_name} · {'GPU' if model.model.device == 'cuda' else 'CPU'}"
+        return {"state": self.status, "label": STATUS_TEXT[self.status], "detail": detail}
+
+    def open_window(self, page="home"):
+        if not MAC:
+            ctypes.windll.user32.AllowSetForegroundWindow(-1)
+        if self.ui:
+            self.send({"type": "focus", "page": page})
+            return
+        self.ui = subprocess.Popen(
+            UI_COMMAND,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=open(LOG_PATH, "a", encoding="utf-8"),
+            cwd=HERE,
+        )
+        self.ui_status = self.status_info()
+        self.send(
+            {
+                "cfg": self.cfg,
+                "options": {
+                    "modes": [[k, v] for k, v in MODES.items()],
+                    "languages": [[k, v] for k, v in LANGUAGES.items()],
+                    "models": [[k, v] for k, v in MODELS.items()],
+                    "mics": input_devices(),
+                    "defaultMic": DEFAULT_MIC,
+                },
+                "history": self.history,
+                "status": self.ui_status,
+                "page": page,
+                "mac": MAC,
+            }
+        )
+        threading.Thread(target=self.read_ui, args=(self.ui,), daemon=True).start()
+
+    def read_ui(self, proc):
+        for line in proc.stdout:
+            self.post(self.on_ui, json.loads(line))
+        self.post(self.ui_closed, proc)
+
+    def ui_closed(self, proc):
+        if self.ui is proc:
+            self.ui = None
+
+    def send(self, msg):
+        if not self.ui:
+            return
+        try:
+            self.ui.stdin.write(json.dumps(msg, ensure_ascii=False).encode("utf-8") + b"\n")
+            self.ui.stdin.flush()
+        except OSError:
+            pass
+
+    def on_ui(self, msg):
+        cmd = msg["cmd"]
+        if cmd == "apply":
+            self.apply({**self.cfg, **msg["cfg"]})
+        elif cmd == "capture":
+            self.capture_hotkey()
+        elif cmd == "delete":
+            self.history["items"] = [i for i in self.history["items"] if i["t"] != msg["t"]]
+            save_history(self.history)
+        elif cmd == "clear":
+            self.history["items"] = []
+            save_history(self.history)
+
+    def capture_hotkey(self):
+        self.engine.paused = True
+
+        def worker():
+            hk = keyboard.read_hotkey(suppress=False)
+            while hotkey_down(hk):
+                time.sleep(0.02)
+            self.post(self.hotkey_captured, hk)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def hotkey_captured(self, hk):
+        self.engine.paused = False
+        self.apply({**self.cfg, "hotkey": hk})
+        self.send({"type": "cfg", "cfg": self.cfg})
+
+    def add_history(self, text, seconds):
+        entry = {"t": time.time(), "text": text, "secs": round(seconds, 1)}
+        h = self.history
+        h["items"] = (h["items"] + [entry])[-HISTORY_LIMIT:]
+        h["words"] += len(text.split())
+        h["seconds"] += seconds
+        save_history(h)
+        self.send({"type": "entry", "entry": entry, "words": h["words"], "seconds": h["seconds"]})
 
     def apply(self, cfg):
         self.cfg = cfg
@@ -655,6 +638,8 @@ class App:
         self.engine.dirty.set()
 
     def quit(self):
+        if self.ui:
+            self.ui.kill()
         self.tray.stop()
         self.root.destroy()
         os._exit(0)
@@ -662,7 +647,7 @@ class App:
     def run(self):
         if self.first_run:
             save_config(self.cfg)
-            self.open_settings()
+            self.open_window("settings")
         self.tray.run_detached()
         if MAC and not keyboard.start():
             self.notify(

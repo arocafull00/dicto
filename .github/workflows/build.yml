@@ -1,0 +1,50 @@
+name: Instalador
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Versión
+        shell: bash
+        run: echo "DICTO_VERSION=$([[ $GITHUB_REF == refs/tags/v* ]] && echo ${GITHUB_REF_NAME#v} || echo 0.0.$GITHUB_RUN_NUMBER)" >> $GITHUB_ENV
+      - name: Dependencias
+        run: python -m pip install -r requirements.txt pyinstaller
+      - name: PyInstaller
+        run: pyinstaller --noconfirm packaging/dicto.spec
+      - name: Instalador
+        run: |
+          choco install innosetup -y --no-progress
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:DICTO_VERSION" "/DOutputName=Dicto-$env:DICTO_VERSION-windows-setup" packaging\dicto.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dicto-windows
+          path: dist/*-setup.exe
+          compression-level: 0
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Instalador con nombre fijo
+        run: cp artifacts/dicto-windows/*-windows-setup.exe artifacts/Dicto-Windows-Setup.exe
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/Dicto-Windows-Setup.exe
+            artifacts/dicto-windows/*-windows-setup.exe
+          draft: true
