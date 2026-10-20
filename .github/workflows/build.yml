@@ -25,9 +25,31 @@ jobs:
           choco install innosetup -y --no-progress
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:DICTO_VERSION" "/DOutputName=Dicto-$env:DICTO_VERSION-windows-setup" packaging\dicto.iss
       - uses: actions/upload-artifact@v4
+        id: sin-firmar
+        with:
+          name: dicto-windows-sin-firmar
+          path: dist/*-setup.exe
+          compression-level: 0
+      - name: Firmar con SignPath
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: dicto
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: initial
+          github-artifact-id: ${{ steps.sin-firmar.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+      - name: Sin firma
+        if: vars.SIGNPATH_ORGANIZATION_ID == ''
+        shell: bash
+        run: mkdir signed && cp dist/*-setup.exe signed/
+      - uses: actions/upload-artifact@v4
         with:
           name: dicto-windows
-          path: dist/*-setup.exe
+          path: signed/*-setup.exe
           compression-level: 0
 
   release:
