@@ -195,7 +195,30 @@ Los ajustes se guardan en `config.json`, el historial en `history.json` y el reg
 
 ## 🔒 Privacidad
 
-Todo ocurre en tu máquina. Dicto no tiene cuentas, ni telemetría, ni servidores: la única conexión a internet es la descarga inicial del modelo desde Hugging Face.
+La transcripción ocurre en tu máquina, sin cuentas, telemetría ni envío de audio al mantenedor. Dicto descarga los modelos desde Hugging Face y, en Windows con GPU NVIDIA, puede descargar bibliotecas CUDA desde PyPI. Una vez disponibles el modelo y las dependencias, el dictado funciona sin conexión.
+
+El historial, los ajustes y los contadores se guardan localmente. El archivo `dicto.log` también puede contener texto transcrito. Borrar el historial no borra ese registro. Consulta la [política de privacidad](https://adrianrocafulldev.es/dicto/privacidad) para conocer las ubicaciones de los archivos, los servicios externos y cómo eliminar todos los datos.
+
+## Code signing policy
+
+La solicitud a SignPath Foundation está en preparación. **La firma de SignPath todavía no está activa** y las publicaciones actuales pueden estar sin firmar. Consulta la [Code signing policy](https://adrianrocafulldev.es/dicto/code-signing-policy) para comprobar el estado y las responsabilidades.
+
+Si se aprueba la solicitud y se activa la integración: Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+
+- Autor y committer: [Adrián Rocafull (arocafull00)](https://github.com/arocafull00).
+- Revisor de contribuciones externas: Adrián Rocafull.
+- Aprobador de solicitudes de firma: Adrián Rocafull. Cada solicitud requerirá aprobación manual; antes de activar la integración se deberá verificar MFA en GitHub y SignPath.
+- Instaladores compilados desde el repositorio público con GitHub Actions. Los binarios de terceros no se presentarán como código propio para su firma. La compatibilidad de las bibliotecas CUDA opcionales con el programa queda pendiente de revisión por SignPath.
+
+## Desinstalación
+
+En Windows, usa **Ajustes → Aplicaciones → Dicto → Desinstalar**. En macOS, desactiva primero el inicio automático en Dicto y elimina `~/Applications/Dicto.app`; si usaste Homebrew, ejecuta `brew uninstall dicto`.
+
+La desinstalación puede conservar los datos personales. Para borrarlos, cierra Dicto y elimina `%APPDATA%\Dicto\` (Windows) o `~/Library/Application Support/Dicto/` (macOS). Los modelos descargados están aparte, normalmente en `~/.cache/huggingface/`; elimina solo los correspondientes a Dicto si otras aplicaciones usan esa caché.
+
+## Licencia
+
+Dicto se distribuye bajo la [licencia MIT](LICENSE). Los modelos y componentes de terceros conservan sus propias licencias.
 
 ## 🛠️ Hecho con
 
