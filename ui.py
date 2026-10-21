@@ -71,7 +71,18 @@ class Api:
         self._window.destroy()
 
 
+def brand_mac_app():
+    import AppKit
+
+    AppKit.NSBundle.mainBundle().infoDictionary()["CFBundleName"] = APP
+    icon = AppKit.NSImage.alloc().initWithContentsOfFile_(os.path.join(HERE, "assets", "dicto.icns"))
+    if icon:
+        AppKit.NSApplication.sharedApplication().setApplicationIconImage_(icon)
+
+
 def main():
+    if MAC:
+        brand_mac_app()
     state = json.loads(sys.stdin.buffer.readline())
     api = Api(state)
     with open(os.path.join(HERE, "ui.html"), encoding="utf-8") as f:

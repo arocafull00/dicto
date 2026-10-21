@@ -205,10 +205,8 @@ def set_autostart(on):
 
 def ensure_mac_app():
     contents = os.path.join(APP_BUNDLE, "Contents")
-    if os.path.exists(contents):
-        return
-    os.makedirs(os.path.join(contents, "MacOS"))
-    os.makedirs(os.path.join(contents, "Resources"))
+    os.makedirs(os.path.join(contents, "MacOS"), exist_ok=True)
+    os.makedirs(os.path.join(contents, "Resources"), exist_ok=True)
     with open(os.path.join(contents, "Info.plist"), "wb") as f:
         plistlib.dump(
             {
@@ -227,7 +225,7 @@ def ensure_mac_app():
     with open(launcher, "w", encoding="utf-8") as f:
         f.write(
             "#!/bin/sh\n"
-            f"exec {shlex.quote(sys.executable)} {shlex.quote(os.path.join(HERE, 'dicto.py'))}"
+            f"{shlex.quote(sys.executable)} {shlex.quote(os.path.join(HERE, 'dicto.py'))}"
             f" >> {shlex.quote(LOG_PATH)} 2>&1\n"
         )
     os.chmod(launcher, 0o755)
