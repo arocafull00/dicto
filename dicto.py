@@ -229,7 +229,9 @@ def ensure_mac_app():
             f" >> {shlex.quote(LOG_PATH)} 2>&1\n"
         )
     os.chmod(launcher, 0o755)
-    shutil.copy(os.path.join(HERE, "assets", "dicto.icns"), os.path.join(contents, "Resources", "dicto.icns"))
+    icns = os.path.join(HERE, "assets", "dicto.icns")
+    if os.path.exists(icns):
+        shutil.copy(icns, os.path.join(contents, "Resources", "dicto.icns"))
 
 
 def ensure_shortcuts():
