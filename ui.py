@@ -26,6 +26,9 @@ def dark_mode():
         if MAC:
             r = subprocess.run(["defaults", "read", "-g", "AppleInterfaceStyle"], capture_output=True, text=True)
             return "Dark" in r.stdout
+        if sys.platform != "win32":
+            r = subprocess.run(["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"], capture_output=True, text=True)
+            return "dark" in r.stdout
         import winreg
 
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as k:
@@ -97,7 +100,8 @@ def main():
         min_size=(760, 520),
         background_color="#121b17" if dark_mode() else "#F5F7F2",
     )
-    webview.start(icon=os.path.join(HERE, "dicto.ico"))
+    icon = "dicto.ico" if sys.platform == "win32" else os.path.join("assets", "dicto.png")
+    webview.start(icon=os.path.join(HERE, icon))
     os._exit(0)
 
 

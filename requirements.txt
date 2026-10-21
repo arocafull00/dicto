@@ -4,6 +4,7 @@ numpy
 keyboard; sys_platform == "win32"
 pyobjc-framework-Quartz; sys_platform == "darwin"
 pyobjc-framework-Cocoa; sys_platform == "darwin"
+pynput; sys_platform == "linux"
 pyperclip
 pystray
 pillow

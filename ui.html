@@ -328,7 +328,7 @@ kbd {
 <script>
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-const state = { cfg: {}, options: {}, history: { words: 0, seconds: 0, items: [] }, mac: false, capturing: false };
+const state = { cfg: {}, options: {}, history: { words: 0, seconds: 0, items: [] }, mac: false, windows: true, capturing: false };
 
 const dicto = {
   ready: false,
@@ -534,7 +534,7 @@ function renderSettings() {
   if (cfg.device && !options.mics.includes(cfg.device)) mics.push([cfg.device, cfg.device]);
   fillSelect("device", mics, cfg.device);
   for (const input of $$('input[type="checkbox"][data-key]')) input.checked = !!cfg[input.dataset.key];
-  $("#autostartLabel").textContent = state.mac ? "Abrir al iniciar sesión" : "Iniciar con Windows";
+  $("#autostartLabel").textContent = state.windows ? "Iniciar con Windows" : "Abrir al iniciar sesión";
 }
 
 function renderAll() {

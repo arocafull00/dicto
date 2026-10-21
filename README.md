@@ -4,12 +4,13 @@
 
 # Dicto
 
-**Dictado por voz para Windows y macOS, 100 % local.**
+**Dictado por voz para Windows, macOS y Linux, 100 % local.**
 Mantén pulsada una tecla, habla y suelta: el texto aparece donde esté el cursor.
 
 <p>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white" alt="Windows">
   <img src="https://img.shields.io/badge/macOS-12%2B-000000?logo=apple&logoColor=white" alt="macOS">
+  <img src="https://img.shields.io/badge/Linux-X11-FCC624?logo=linux&logoColor=black" alt="Linux">
   <img src="https://img.shields.io/badge/Homebrew-tap-FBB040?logo=homebrew&logoColor=white" alt="Homebrew">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Whisper-faster--whisper-111111" alt="faster-whisper">
@@ -23,19 +24,19 @@ Mantén pulsada una tecla, habla y suelta: el texto aparece donde esté el curso
 
 ## ✨ Qué hace
 
-Dicto vive en la bandeja del sistema (Windows) o en la barra de menús (macOS) y convierte tu voz en texto en **cualquier aplicación**: el navegador, Word, Slack, tu editor de código, la terminal… Usa [Whisper](https://github.com/openai/whisper) a través de [faster-whisper](https://github.com/SYSTRAN/faster-whisper), así que la transcripción se hace en tu propio ordenador: **ningún audio sale de tu equipo**.
+Dicto vive en la bandeja del sistema (Windows y Linux) o en la barra de menús (macOS) y convierte tu voz en texto en **cualquier aplicación**: el navegador, Word, Slack, tu editor de código, la terminal… Usa [Whisper](https://github.com/openai/whisper) a través de [faster-whisper](https://github.com/SYSTRAN/faster-whisper), así que la transcripción se hace en tu propio ordenador: **ningún audio sale de tu equipo**.
 
-- 💻 **Windows y Mac.** Mismo funcionamiento en Windows 10/11 y en macOS (Intel y Apple Silicon).
-- 🎙️ **Pulsar y hablar.** Mantén `Ctrl derecho` en Windows u `Opción derecha` en Mac (o el atajo que elijas), habla y suelta. El texto se pega solo.
+- 💻 **Windows, Mac y Linux.** Mismo funcionamiento en Windows 10/11, macOS (Intel y Apple Silicon) y Linux con X11.
+- 🎙️ **Pulsar y hablar.** Mantén `Ctrl derecho` en Windows y Linux u `Opción derecha` en Mac (o el atajo que elijas), habla y suelta. El texto se pega solo.
 - 🔁 **Dos modos.** *Mantener pulsado* o *pulsar para empezar y parar*, para dictados largos.
-- ⚡ **Rápido con GPU.** En Windows usa CUDA si tienes una NVIDIA; si no (y siempre en Mac), funciona en CPU sin tocar nada.
+- ⚡ **Rápido con GPU.** En Windows usa CUDA si tienes una NVIDIA, y en Linux si además tienes CUDA 12 y cuDNN 9 instalados; si no (y siempre en Mac), funciona en CPU sin tocar nada.
 - 🌍 **Multilingüe.** Español, inglés, catalán, portugués, francés, alemán, italiano o detección automática.
 - 📚 **Diccionario propio.** Enséñale nombres, marcas o términos técnicos que suele escribir mal.
 - 🗂️ **Historial.** Tus últimas 500 transcripciones, agrupadas por día y listas para copiar, con estadísticas de palabras, velocidad y racha.
 - 🟢 **Indicador flotante.** Una pequeña píldora muestra el nivel del micrófono mientras grabas y avisa cuando transcribe.
 - 🔔 **Sonidos sutiles** al empezar y terminar de grabar.
 - 📋 **Respeta tu portapapeles.** Pega el texto y después restaura lo que tenías copiado.
-- 🚀 **Inicio automático** opcional, con accesos directos en el menú Inicio y el escritorio (Windows) o `Dicto.app` en Spotlight y Launchpad (Mac).
+- 🚀 **Inicio automático** opcional, con accesos directos en el menú Inicio y el escritorio (Windows), `Dicto.app` en Spotlight y Launchpad (Mac) o una entrada en el menú de aplicaciones (Linux).
 
 ## 🧭 Cómo funciona
 
@@ -65,6 +66,7 @@ Elige tu sistema:
 - [🪟 Windows](#-windows)
 - [🍎 macOS con Homebrew](#-macos-con-homebrew) *(recomendado en Mac)*
 - [🍎 macOS sin Homebrew](#-macos-sin-homebrew)
+- [🐧 Linux](#-linux)
 
 ### 🪟 Windows
 
@@ -147,10 +149,29 @@ La primera vez, macOS pedirá tres permisos para **Dicto** (en algunos sistemas 
 > [!NOTE]
 > En Mac no hay CUDA, así que Whisper se ejecuta en la CPU. En Apple Silicon el modelo Turbo va bien; en Macs Intel elige *Small* o *Base* para que vaya fluido.
 
+### 🐧 Linux
+
+**Requisitos:** una distribución con `apt` (Ubuntu, Debian, Mint…), `dnf` (Fedora), `pacman` (Arch) o `zypper` (openSUSE), sesión **X11** y un micrófono.
+
+```bash
+git clone https://github.com/arocafull00/dicto.git
+```
+
+```bash
+bash dicto/instalar.sh
+```
+
+El instalador pide tu contraseña para instalar las dependencias del sistema (Tkinter, PyGObject, WebKit2GTK, AppIndicator, PortAudio, `xclip` y `notify-send`), crea el entorno de Python, añade Dicto al menú de aplicaciones y lo abre. No hay paquete precompilado: Dicto se ejecuta desde la carpeta que has clonado, así que no la borres. Para actualizar, `git pull` dentro de ella.
+
+> [!WARNING]
+> Dicto necesita X11 para detectar el atajo y pegar el texto. En una sesión **Wayland** (la predeterminada en Ubuntu y Fedora con GNOME) solo funciona en aplicaciones XWayland. Para usarlo en todas, cierra sesión y, en la pantalla de inicio, elige **Ubuntu en Xorg** (o la opción *X11* de tu escritorio).
+
+En GNOME, el icono de la bandeja necesita la extensión *AppIndicator*, que Ubuntu ya trae activada.
+
 ### La primera vez que se abre
 
 1. **Se descarga el modelo de voz** desde Hugging Face, una sola vez. Con el modelo Turbo son unos **1,6 GB**, así que puede tardar varios minutos: mientras tanto el icono se ve ⚪ gris. Cuando se pone 🟢 verde, ya puedes dictar.
-2. Se crean los accesos directos: menú Inicio y escritorio en Windows, `~/Applications/Dicto.app` en Mac.
+2. Se crean los accesos directos: menú Inicio y escritorio en Windows, `~/Applications/Dicto.app` en Mac y el menú de aplicaciones en Linux.
 3. Se abre la ventana de Dicto en *Ajustes* para que elijas el atajo, el idioma y el micrófono.
 
 > [!NOTE]
@@ -161,7 +182,7 @@ La primera vez, macOS pedirá tres permisos para **Dicto** (en algunos sistemas 
 
 ## 🎛️ Configuración
 
-Haz clic en el icono de la bandeja (Windows) o de la barra de menús (Mac) para abrir Dicto. La ventana tiene tres secciones y sigue el tema claro u oscuro del sistema:
+Haz clic en el icono de la bandeja (Windows y Linux) o de la barra de menús (Mac) para abrir Dicto. La ventana tiene tres secciones y sigue el tema claro u oscuro del sistema:
 
 - **Inicio:** tus estadísticas (palabras dictadas, palabras por minuto y días seguidos) y el historial de transcripciones agrupado por día. Pasa el ratón por una para copiarla o borrarla.
 - **Diccionario:** nombres, marcas o términos que Whisper debe reconocer mejor.
@@ -182,6 +203,7 @@ Los ajustes se guardan en `config.json`, el historial en `history.json` y el reg
 
 - **Windows:** `%APPDATA%\Dicto\`
 - **macOS:** `~/Library/Application Support/Dicto/`
+- **Linux:** `~/.config/Dicto/`
 
 ## 🧠 Modelos
 
@@ -212,9 +234,9 @@ Si se aprueba la solicitud y se activa la integración: Free code signing provid
 
 ## Desinstalación
 
-En Windows, usa **Ajustes → Aplicaciones → Dicto → Desinstalar**. En macOS, desactiva primero el inicio automático en Dicto y elimina `~/Applications/Dicto.app`; si usaste Homebrew, ejecuta `brew uninstall dicto`.
+En Windows, usa **Ajustes → Aplicaciones → Dicto → Desinstalar**. En macOS, desactiva primero el inicio automático en Dicto y elimina `~/Applications/Dicto.app`; si usaste Homebrew, ejecuta `brew uninstall dicto`. En Linux, desactiva el inicio automático, borra la carpeta que clonaste y elimina `~/.local/share/applications/dicto.desktop`.
 
-La desinstalación puede conservar los datos personales. Para borrarlos, cierra Dicto y elimina `%APPDATA%\Dicto\` (Windows) o `~/Library/Application Support/Dicto/` (macOS). Los modelos descargados están aparte, normalmente en `~/.cache/huggingface/`; elimina solo los correspondientes a Dicto si otras aplicaciones usan esa caché.
+La desinstalación puede conservar los datos personales. Para borrarlos, cierra Dicto y elimina `%APPDATA%\Dicto\` (Windows), `~/Library/Application Support/Dicto/` (macOS) o `~/.config/Dicto/` (Linux). Los modelos descargados están aparte, normalmente en `~/.cache/huggingface/`; elimina solo los correspondientes a Dicto si otras aplicaciones usan esa caché.
 
 ## Licencia
 
@@ -222,4 +244,4 @@ Dicto se distribuye bajo la [licencia MIT](LICENSE). Los modelos y componentes d
 
 ## 🛠️ Hecho con
 
-[faster-whisper](https://github.com/SYSTRAN/faster-whisper) · [sounddevice](https://github.com/spatialaudio/python-sounddevice) · [keyboard](https://github.com/boppreh/keyboard) · [PyObjC](https://pyobjc.readthedocs.io) · [pystray](https://github.com/moses-palmer/pystray) · [pyperclip](https://github.com/asweigart/pyperclip) · [Pillow](https://python-pillow.org) · Tkinter
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) · [sounddevice](https://github.com/spatialaudio/python-sounddevice) · [keyboard](https://github.com/boppreh/keyboard) · [PyObjC](https://pyobjc.readthedocs.io) · [pynput](https://github.com/moses-palmer/pynput) · [pystray](https://github.com/moses-palmer/pystray) · [pyperclip](https://github.com/asweigart/pyperclip) · [Pillow](https://python-pillow.org) · Tkinter

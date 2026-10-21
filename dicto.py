@@ -20,17 +20,21 @@ if __name__ == "__main__" and sys.argv[1:] == ["--ui"]:
     ui.main()
 
 MAC = sys.platform == "darwin"
+WIN = sys.platform == "win32"
+LINUX = not MAC and not WIN
 FROZEN = getattr(sys, "frozen", False)
-if MAC:
-    import fcntl
-else:
+if WIN:
     import winreg
     import winsound
+else:
+    import fcntl
 
 APP = "Dicto"
 HERE = os.path.dirname(os.path.abspath(__file__))
 if MAC:
     CONFIG_DIR = os.path.expanduser(f"~/Library/Application Support/{APP}")
+elif LINUX:
+    CONFIG_DIR = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), APP)
 else:
     CONFIG_DIR = os.path.join(os.environ["APPDATA"], APP)
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
@@ -38,7 +42,8 @@ HISTORY_PATH = os.path.join(CONFIG_DIR, "history.json")
 HISTORY_LIMIT = 500
 LOG_PATH = os.path.join(CONFIG_DIR, "dicto.log")
 ICON_PATH = os.path.join(HERE, "dicto.ico")
-PYTHONW = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+PNG_PATH = os.path.join(HERE, "assets", "dicto.png")
+PYTHONW = os.path.join(os.path.dirname(sys.executable), "pythonw.exe") if WIN else sys.executable
 LAUNCH = [sys.executable] if FROZEN else [PYTHONW, os.path.join(HERE, "dicto.py")]
 UI_COMMAND = [sys.executable, "--ui"] if FROZEN else [sys.executable, os.path.join(HERE, "ui.py")]
 PACKAGES = getattr(sys, "_MEIPASS", os.path.join(sys.prefix, "Lib", "site-packages"))
@@ -48,6 +53,9 @@ RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 BUNDLE_ID = "io.github.arocafull00.dicto"
 APP_BUNDLE = os.path.expanduser(f"~/Applications/{APP}.app")
 LAUNCH_AGENT = os.path.expanduser(f"~/Library/LaunchAgents/{BUNDLE_ID}.plist")
+XDG_DATA = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+DESKTOP_FILE = os.path.join(XDG_DATA, "applications", "dicto.desktop")
+AUTOSTART_FILE = os.path.join(os.path.dirname(CONFIG_DIR), "autostart", "dicto.desktop")
 RATE = 16000
 
 os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -85,7 +93,7 @@ def download_cuda():
     os.replace(tmp, CUDA_DIR)
 
 
-if not MAC:
+if WIN:
     add_cuda_dirs()
 
 import numpy as np
@@ -98,6 +106,8 @@ from PIL import Image, ImageDraw
 if MAC:
     import AppKit
     import mackeys as keyboard
+elif LINUX:
+    import linuxkeys as keyboard
 else:
     import keyboard
 
@@ -193,6 +203,12 @@ def set_autostart(on):
         elif os.path.exists(LAUNCH_AGENT):
             os.remove(LAUNCH_AGENT)
         return
+    if LINUX:
+        if on:
+            write_desktop_entry(AUTOSTART_FILE)
+        elif os.path.exists(AUTOSTART_FILE):
+            os.remove(AUTOSTART_FILE)
+        return
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
         if on:
             winreg.SetValueEx(k, APP, 0, winreg.REG_SZ, subprocess.list2cmdline(LAUNCH))
@@ -234,9 +250,36 @@ def ensure_mac_app():
         shutil.copy(icns, os.path.join(contents, "Resources", "dicto.icns"))
 
 
+def write_desktop_entry(path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            f"Name={APP}\n"
+            "Comment=Dictado por voz 100 % local con Whisper\n"
+            f"Exec={shlex.join(LAUNCH)}\n"
+            "Icon=dicto\n"
+            "Terminal=false\n"
+            "Categories=Utility;Accessibility;AudioVideo;\n"
+            "Keywords=dictado;voz;whisper;transcripción;\n"
+            f"StartupWMClass={APP}\n"
+        )
+
+
+def ensure_linux_app():
+    write_desktop_entry(DESKTOP_FILE)
+    icons = os.path.join(HERE, "assets", "linux", "icons")
+    if os.path.isdir(icons):
+        shutil.copytree(icons, os.path.join(XDG_DATA, "icons"), dirs_exist_ok=True)
+
+
 def ensure_shortcuts():
     if MAC:
         ensure_mac_app()
+        return
+    if LINUX:
+        ensure_linux_app()
         return
     if FROZEN:
         return
@@ -290,6 +333,9 @@ def hotkey_down(hotkey):
 def beep(start):
     if MAC:
         subprocess.Popen(["afplay", f"/System/Library/Sounds/{'Tink' if start else 'Pop'}.aiff"])
+    elif LINUX:
+        t = np.arange(int(RATE * 0.07)) / RATE
+        sd.play((0.2 * np.sin(2 * np.pi * (880 if start else 440) * t)).astype(np.float32), RATE)
     else:
         threading.Thread(target=winsound.Beep, args=(880 if start else 440, 70), daemon=True).start()
 
@@ -308,7 +354,7 @@ def paste(text):
 
 
 def load_model(name):
-    if not MAC and cuda_ready():
+    if (WIN and cuda_ready()) or (LINUX and shutil.which("nvidia-smi")):
         try:
             return WhisperModel(name, device="cuda", compute_type="float16")
         except Exception as e:
@@ -378,7 +424,7 @@ class Engine:
             self.app.notify(f"No se pudo iniciar: {e}")
             raise
         self.app.on_ready()
-        if not MAC and not cuda_ready() and has_nvidia():
+        if WIN and not cuda_ready() and has_nvidia():
             threading.Thread(target=self.get_cuda, daemon=True).start()
         was_down = False
         while True:
@@ -455,6 +501,8 @@ class Overlay:
         if MAC:
             win.attributes("-transparent", True)
             bg = "systemTransparent"
+        elif LINUX:
+            bg = self.BG
         else:
             win.attributes("-transparentcolor", self.KEY)
             bg = self.KEY
@@ -465,7 +513,9 @@ class Overlay:
         y = win.winfo_screenheight() - self.h - int(90 * self.s)
         win.geometry(f"{self.w}x{self.h}+{x}+{y}")
         win.update_idletasks()
-        if not MAC:
+        if LINUX:
+            win.withdraw()
+        if WIN:
             hwnd = ctypes.windll.user32.GetParent(win.winfo_id())
             style = ctypes.windll.user32.GetWindowLongW(hwnd, -20)
             ctypes.windll.user32.SetWindowLongW(hwnd, -20, style | 0x08000000 | 0x80)
@@ -476,6 +526,10 @@ class Overlay:
     def tick(self, enabled, status, level):
         show = enabled and status in ("recording", "processing")
         if show != self.visible:
+            if LINUX and show:
+                self.win.deiconify()
+            elif LINUX:
+                self.win.withdraw()
             self.win.attributes("-alpha", 0.94 if show else 0.0)
             self.visible = show
         if not show:
@@ -568,6 +622,9 @@ class App:
                 ["osascript", "-e", "on run argv", "-e", f'display notification (item 1 of argv) with title "{APP}"', "-e", "end run", message]
             )
             return
+        if LINUX:
+            linux_notify(message)
+            return
         try:
             self.tray.notify(message, APP)
         except Exception:
@@ -586,7 +643,7 @@ class App:
         return {"state": self.status, "label": STATUS_TEXT[self.status], "detail": detail}
 
     def open_window(self, page="home"):
-        if not MAC:
+        if WIN:
             ctypes.windll.user32.AllowSetForegroundWindow(-1)
         if self.ui:
             self.send({"type": "focus", "page": page})
@@ -613,6 +670,7 @@ class App:
                 "status": self.ui_status,
                 "page": page,
                 "mac": MAC,
+                "windows": WIN,
             }
         )
         threading.Thread(target=self.read_ui, args=(self.ui,), daemon=True).start()
@@ -696,21 +754,38 @@ class App:
                 "Dicto necesita permiso de Monitorización de entrada y Accesibilidad. "
                 "Actívalo en Ajustes del Sistema › Privacidad y seguridad y vuelve a abrir Dicto."
             )
+        if LINUX and (not keyboard.start() or os.environ.get("XDG_SESSION_TYPE") == "wayland"):
+            self.notify(
+                "En Wayland, Dicto solo detecta el atajo y pega en aplicaciones XWayland. "
+                "Para usarlo en todas, inicia sesión con Xorg (X11)."
+            )
         threading.Thread(target=self.engine.run, daemon=True).start()
         self.root.after(33, self.pump)
         self.root.mainloop()
 
 
 def set_window_icon(win):
-    if not MAC:
+    if WIN:
         win.iconbitmap(ICON_PATH)
+    elif LINUX and os.path.exists(PNG_PATH):
+        win.iconphoto(True, tk.PhotoImage(master=win, file=PNG_PATH))
 
 
-def main_mac():
+def linux_notify(message):
+    try:
+        subprocess.Popen(["notify-send", "-a", APP, "-i", "dicto", APP, message])
+    except OSError:
+        print(message)
+
+
+def main_posix():
     lock = open(os.path.join(CONFIG_DIR, "dicto.lock"), "w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
+        if LINUX:
+            linux_notify("Dicto ya está abierto. Búscalo en la bandeja del sistema.")
+            return
         subprocess.run(
             [
                 "osascript",
@@ -723,8 +798,8 @@ def main_mac():
 
 
 def main():
-    if MAC:
-        main_mac()
+    if not WIN:
+        main_posix()
         return
     mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Local\\DictoSingleInstance")
     if ctypes.windll.kernel32.GetLastError() == 183:
