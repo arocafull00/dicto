@@ -54,7 +54,7 @@ El icono de la bandeja (o de la barra de menús) cambia de color según el estad
 | Color | Estado |
 | :---: | --- |
 | ⚪ Gris | Cargando el modelo |
-| 🔵 Azul | Listo para dictar |
+| 🟢 Verde | Listo para dictar |
 | 🔴 Rojo | Escuchando |
 | 🟠 Naranja | Transcribiendo |
 
@@ -149,7 +149,7 @@ La primera vez, macOS pedirá tres permisos para **Dicto** (en algunos sistemas 
 
 ### La primera vez que se abre
 
-1. **Se descarga el modelo de voz** desde Hugging Face, una sola vez. Con el modelo Turbo son unos **1,6 GB**, así que puede tardar varios minutos: mientras tanto el icono se ve ⚪ gris. Cuando se pone 🔵 azul, ya puedes dictar.
+1. **Se descarga el modelo de voz** desde Hugging Face, una sola vez. Con el modelo Turbo son unos **1,6 GB**, así que puede tardar varios minutos: mientras tanto el icono se ve ⚪ gris. Cuando se pone 🟢 verde, ya puedes dictar.
 2. Se crean los accesos directos: menú Inicio y escritorio en Windows, `~/Applications/Dicto.app` en Mac.
 3. Se abre la ventana de Dicto en *Ajustes* para que elijas el atajo, el idioma y el micrófono.
 

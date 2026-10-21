@@ -5,6 +5,7 @@ import os
 import plistlib
 import queue
 import shlex
+import shutil
 import subprocess
 import sys
 import threading
@@ -132,7 +133,7 @@ MODELS = {
 }
 DEFAULT_MIC = "Predeterminado del sistema"
 
-COLORS = {"loading": "#8a8f98", "idle": "#2f6fed", "recording": "#e5484d", "processing": "#f5a524"}
+COLORS = {"loading": "#8a8f98", "idle": "#216B50", "recording": "#e5484d", "processing": "#f5a524"}
 STATUS_TEXT = {
     "loading": "Cargando modelo…",
     "idle": "Listo",
@@ -170,16 +171,14 @@ def save_history(history):
 
 
 def make_icon(color, size=64):
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    big = size * 4
+    img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    s = size / 64
-    w = max(2, round(4 * s))
-    d.ellipse((1 * s, 1 * s, 63 * s, 63 * s), fill=color)
-    d.rounded_rectangle((25 * s, 12 * s, 39 * s, 36 * s), radius=7 * s, fill="white")
-    d.arc((18 * s, 20 * s, 46 * s, 44 * s), 0, 180, fill="white", width=w)
-    d.line((32 * s, 44 * s, 32 * s, 51 * s), fill="white", width=w)
-    d.line((24 * s, 51 * s, 40 * s, 51 * s), fill="white", width=w)
-    return img
+    s = big / 256
+    d.rounded_rectangle((0, 0, big - 1, big - 1), radius=57.6 * s, fill=color)
+    for x, top, bottom in ((64, 96, 158), (128, 40, 214), (192, 64, 190)):
+        d.rounded_rectangle(((x - 19) * s, top * s, (x + 19) * s, bottom * s), radius=19 * s, fill="white")
+    return img.resize((size, size), Image.LANCZOS)
 
 
 ICONS = {k: make_icon(c) for k, c in COLORS.items()}
@@ -232,10 +231,7 @@ def ensure_mac_app():
             f" >> {shlex.quote(LOG_PATH)} 2>&1\n"
         )
     os.chmod(launcher, 0o755)
-    try:
-        make_icon(COLORS["idle"], 1024).save(os.path.join(contents, "Resources", "dicto.icns"))
-    except Exception as e:
-        print(f"No se pudo crear el icono de la app: {e}")
+    shutil.copy(os.path.join(HERE, "assets", "dicto.icns"), os.path.join(contents, "Resources", "dicto.icns"))
 
 
 def ensure_shortcuts():
@@ -244,8 +240,6 @@ def ensure_shortcuts():
         return
     if FROZEN:
         return
-    if not os.path.exists(ICON_PATH):
-        make_icon(COLORS["idle"], 256).save(ICON_PATH, sizes=[(16, 16), (32, 32), (48, 48), (256, 256)])
     start_menu = os.path.join(os.environ["APPDATA"], r"Microsoft\Windows\Start Menu\Programs", f"{APP}.lnk")
     if os.path.exists(start_menu):
         return
@@ -449,7 +443,7 @@ class Engine:
 
 class Overlay:
     KEY = "#010203"
-    BG = "#1c1c1f"
+    BG = "#17241E"
 
     def __init__(self, root):
         self.s = root.winfo_fpixels("1i") / (72 if MAC else 96)
@@ -505,7 +499,7 @@ class Overlay:
                 on = (self.frame // 6) % 3 == i
                 r = (4 if on else 3) * self.s
                 cx = w / 2 + (i - 1) * 14 * self.s
-                c.create_oval(cx - r, h / 2 - r, cx + r, h / 2 + r, fill=COLORS["processing"] if on else "#6b6b70", outline="")
+                c.create_oval(cx - r, h / 2 - r, cx + r, h / 2 + r, fill=COLORS["processing"] if on else "#5b6b63", outline="")
 
 
 class App:

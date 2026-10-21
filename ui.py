@@ -84,7 +84,7 @@ def main():
         width=1040,
         height=720,
         min_size=(760, 520),
-        background_color="#171716" if dark_mode() else "#f3f1ec",
+        background_color="#121b17" if dark_mode() else "#F5F7F2",
     )
     webview.start(icon=os.path.join(HERE, "dicto.ico"))
     os._exit(0)

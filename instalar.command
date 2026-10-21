@@ -51,7 +51,7 @@ open "$HOME/Applications/Dicto.app"
 
 echo
 echo "  La primera vez se descarga el modelo de voz (~1,6 GB con el modelo Turbo)."
-echo "  Mientras tanto el icono de la barra de menús se verá gris. Cuando se ponga azul, ya puedes dictar."
+echo "  Mientras tanto el icono de la barra de menús se verá gris. Cuando se ponga verde, ya puedes dictar."
 echo
 echo "  macOS te pedirá permisos de Micrófono, Monitorización de entrada y Accesibilidad."
 echo "  Concédelos en Ajustes del Sistema › Privacidad y seguridad y vuelve a abrir Dicto."

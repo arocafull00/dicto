@@ -8,7 +8,7 @@ class Dicto < Formula
   depends_on "python@3.12"
 
   def install
-    libexec.install "dicto.py", "ui.py", "ui.html", "mackeys.py", "dicto.ico", "requirements.txt"
+    libexec.install "dicto.py", "ui.py", "ui.html", "mackeys.py", "dicto.ico", "assets", "requirements.txt"
     (bin/"dicto").write <<~EOS
       #!/bin/bash
       set -e

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Dicto
+Comment=Dictado por voz 100 % local con Whisper
+Exec=dicto
+Icon=dicto
+Terminal=false
+Categories=Utility;Accessibility;AudioVideo;
+Keywords=dictado;voz;whisper;transcripción;
+StartupWMClass=Dicto

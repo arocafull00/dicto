@@ -46,7 +46,7 @@ if %errorlevel%==0 (
 echo   [3/3] Abriendo Dicto...
 echo.
 echo   La primera vez se descarga el modelo de voz (~1,6 GB con el modelo Turbo).
-echo   Mientras tanto el icono de la bandeja se verá gris. Cuando se ponga azul, ya puedes dictar.
+echo   Mientras tanto el icono de la bandeja se verá gris. Cuando se ponga verde, ya puedes dictar.
 echo.
 start "" ".venv\Scripts\pythonw.exe" dicto.py
 echo   Listo. A partir de ahora abre Dicto desde el menú Inicio o el escritorio.
