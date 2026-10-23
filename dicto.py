@@ -51,7 +51,10 @@ CUDA_DIR = os.path.join(os.environ.get("LOCALAPPDATA", CONFIG_DIR), APP, "cuda")
 CUDA_PACKAGES = ["nvidia-cublas-cu12", "nvidia-cudnn-cu12", "nvidia-cuda-nvrtc-cu12"]
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 BUNDLE_ID = "io.github.arocafull00.dicto"
-APP_BUNDLE = os.path.expanduser(f"~/Applications/{APP}.app")
+if MAC and FROZEN:
+    APP_BUNDLE = os.path.abspath(os.path.join(os.path.dirname(sys.executable), "..", ".."))
+else:
+    APP_BUNDLE = os.path.expanduser(f"~/Applications/{APP}.app")
 LAUNCH_AGENT = os.path.expanduser(f"~/Library/LaunchAgents/{BUNDLE_ID}.plist")
 XDG_DATA = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
 DESKTOP_FILE = os.path.join(XDG_DATA, "applications", "dicto.desktop")
@@ -276,7 +279,8 @@ def ensure_linux_app():
 
 def ensure_shortcuts():
     if MAC:
-        ensure_mac_app()
+        if not FROZEN:
+            ensure_mac_app()
         return
     if LINUX:
         ensure_linux_app()

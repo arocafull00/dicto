@@ -52,9 +52,36 @@ jobs:
           path: signed/*-setup.exe
           compression-level: 0
 
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Versión
+        run: echo "DICTO_VERSION=$([[ $GITHUB_REF == refs/tags/v* ]] && echo ${GITHUB_REF_NAME#v} || echo 0.0.$GITHUB_RUN_NUMBER)" >> $GITHUB_ENV
+      - name: Dependencias
+        run: python -m pip install -r requirements.txt pyinstaller
+      - name: PyInstaller
+        run: pyinstaller --noconfirm packaging/dicto.spec
+      - name: Firma ad hoc
+        run: codesign --force --deep --sign - dist/Dicto.app
+      - name: Imagen de disco
+        run: |
+          mkdir dmg
+          ditto dist/Dicto.app dmg/Dicto.app
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname Dicto -srcfolder dmg -ov -format UDZO "dist/Dicto-$DICTO_VERSION-macos.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dicto-macos
+          path: dist/*-macos.dmg
+          compression-level: 0
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows]
+    needs: [windows, macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -63,10 +90,14 @@ jobs:
         with:
           path: artifacts
       - name: Instalador con nombre fijo
-        run: cp artifacts/dicto-windows/*-windows-setup.exe artifacts/Dicto-Windows-Setup.exe
+        run: |
+          cp artifacts/dicto-windows/*-windows-setup.exe artifacts/Dicto-Windows-Setup.exe
+          cp artifacts/dicto-macos/*-macos.dmg artifacts/Dicto-macOS.dmg
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/Dicto-Windows-Setup.exe
             artifacts/dicto-windows/*-windows-setup.exe
+            artifacts/Dicto-macOS.dmg
+            artifacts/dicto-macos/*-macos.dmg
           draft: true
