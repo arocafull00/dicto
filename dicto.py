@@ -60,6 +60,8 @@ XDG_DATA = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share
 DESKTOP_FILE = os.path.join(XDG_DATA, "applications", "dicto.desktop")
 AUTOSTART_FILE = os.path.join(os.path.dirname(CONFIG_DIR), "autostart", "dicto.desktop")
 RATE = 16000
+CHUNK_MIN = 8
+CHUNK_MAX = 25
 
 os.makedirs(CONFIG_DIR, exist_ok=True)
 if sys.stdout is None or sys.stderr is None:
@@ -366,6 +368,23 @@ def load_model(name):
     return WhisperModel(name, device="cpu", compute_type="int8")
 
 
+def find_cut(audio):
+    frame = RATE // 10
+    start, n = CHUNK_MIN * 10, len(audio) // frame
+    if n <= start:
+        return None
+    rms = np.sqrt(np.mean(audio[: n * frame].reshape(n, frame) ** 2, axis=1))
+    quiet = rms < max(0.1 * np.percentile(rms, 90), 1e-4)
+    run = 0
+    for i in range(start, n):
+        run = run + 1 if quiet[i] else 0
+        if run == 5:
+            return (i - 2) * frame
+    if n >= CHUNK_MAX * 10:
+        return (start + int(np.argmin(rms[start:]))) * frame
+    return None
+
+
 class Engine:
     def __init__(self, app):
         self.app = app
@@ -453,40 +472,78 @@ class Engine:
 
     def start(self):
         self.chunks = []
+        self.parts = []
         self.level = 0.0
         self.recording = True
+        self.worker = threading.Thread(target=self.transcribe_live, daemon=True)
+        self.worker.start()
         self.app.set_status("recording")
         if self.app.cfg["sounds"]:
             beep(True)
+
+    def transcribe(self, audio):
+        cfg = self.app.cfg
+        prompt = f"{cfg['vocabulary'].strip()} {' '.join(self.parts)[-200:]}".strip()
+        segments, _ = self.model.transcribe(
+            audio,
+            language=None if cfg["language"] == "auto" else cfg["language"],
+            beam_size=5,
+            vad_filter=True,
+            initial_prompt=prompt or None,
+        )
+        return " ".join(s.text.strip() for s in segments).strip()
+
+    def transcribe_live(self):
+        buf = np.zeros(0, np.float32)
+        taken = 0
+        cutting = True
+        while True:
+            recording = self.recording
+            new = self.chunks[taken:]
+            taken += len(new)
+            if new:
+                buf = np.concatenate([buf, *new])
+            if not recording:
+                break
+            cut = find_cut(buf) if cutting else None
+            if not cut:
+                time.sleep(0.2)
+                continue
+            try:
+                text = self.transcribe(buf[:cut])
+            except Exception as e:
+                print(f"Error al transcribir un trozo: {e}")
+                cutting = False
+                continue
+            if text:
+                self.parts.append(text)
+            buf = buf[cut:]
+        self.tail = buf
 
     def stop(self):
         cfg = self.app.cfg
         self.recording = False
         if cfg["sounds"]:
             beep(False)
-        audio = np.concatenate(self.chunks) if self.chunks else np.zeros(0, np.float32)
-        if len(audio) < RATE * 0.3:
+        seconds = sum(map(len, self.chunks)) / RATE
+        if seconds < 0.3:
+            self.worker.join()
             self.app.set_status("idle")
             return
         self.app.set_status("processing")
-        text = ""
+        self.worker.join()
         try:
-            segments, _ = self.model.transcribe(
-                audio,
-                language=None if cfg["language"] == "auto" else cfg["language"],
-                beam_size=5,
-                vad_filter=True,
-                initial_prompt=cfg["vocabulary"].strip() or None,
-            )
-            text = " ".join(s.text.strip() for s in segments).strip()
+            if len(self.tail) >= RATE * 0.3:
+                self.parts.append(self.transcribe(self.tail))
         except Exception as e:
             self.app.notify(f"Error al transcribir: {e}")
+        text = " ".join(self.parts).strip()
         if text:
             while hotkey_down(cfg["hotkey"]):
                 time.sleep(0.02)
             paste(text + " ")
             self.last_text = text
-            self.app.post(self.app.add_history, text, len(audio) / RATE)
+            self.app.post(self.app.add_history, text, seconds)
             print(text)
         self.app.set_status("idle")
 
