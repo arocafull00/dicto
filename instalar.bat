@@ -32,20 +32,11 @@ if not exist ".venv\Scripts\python.exe" (
 
 echo   [2/3] Instalando dependencias. Puede tardar unos minutos...
 ".venv\Scripts\python.exe" -m pip install --upgrade pip --quiet --disable-pip-version-check
-where nvidia-smi >nul 2>&1
-if %errorlevel%==0 (
-    echo         GPU NVIDIA detectada: se instala el soporte CUDA.
-    ".venv\Scripts\python.exe" -m pip install -r requirements.txt --disable-pip-version-check || goto :error
-) else (
-    echo         Sin GPU NVIDIA: Dicto funcionará en CPU.
-    findstr /v /i "nvidia" requirements.txt > "%TEMP%\dicto-requirements.txt"
-    ".venv\Scripts\python.exe" -m pip install -r "%TEMP%\dicto-requirements.txt" --disable-pip-version-check || goto :error
-    del "%TEMP%\dicto-requirements.txt" >nul 2>&1
-)
+".venv\Scripts\python.exe" -m pip install -r requirements.txt --disable-pip-version-check || goto :error
 
 echo   [3/3] Abriendo Dicto...
 echo.
-echo   La primera vez se descarga el modelo de voz (~1,6 GB con el modelo Turbo).
+echo   La primera vez se descarga el modelo de voz (~640 MB).
 echo   Mientras tanto el icono de la bandeja se verá gris. Cuando se ponga verde, ya puedes dictar.
 echo.
 start "" ".venv\Scripts\pythonw.exe" dicto.py

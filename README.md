@@ -13,8 +13,8 @@ Mantén pulsada una tecla, habla y suelta: el texto aparece donde esté el curso
   <img src="https://img.shields.io/badge/Linux-X11-FCC624?logo=linux&logoColor=black" alt="Linux">
   <img src="https://img.shields.io/badge/Homebrew-tap-FBB040?logo=homebrew&logoColor=white" alt="Homebrew">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/Whisper-faster--whisper-111111" alt="faster-whisper">
-  <img src="https://img.shields.io/badge/GPU-CUDA%20opcional-76B900?logo=nvidia&logoColor=white" alt="CUDA">
+  <img src="https://img.shields.io/badge/Parakeet-v3-76B900" alt="Parakeet v3">
+  <img src="https://img.shields.io/badge/CPU-sin%20GPU-111111" alt="CPU">
   <img src="https://img.shields.io/badge/privacidad-sin%20nube-2f6fed" alt="Sin nube">
 </p>
 
@@ -24,13 +24,13 @@ Mantén pulsada una tecla, habla y suelta: el texto aparece donde esté el curso
 
 ## ✨ Qué hace
 
-Dicto vive en la bandeja del sistema (Windows y Linux) o en la barra de menús (macOS) y convierte tu voz en texto en **cualquier aplicación**: el navegador, Word, Slack, tu editor de código, la terminal… Usa [Whisper](https://github.com/openai/whisper) a través de [faster-whisper](https://github.com/SYSTRAN/faster-whisper), así que la transcripción se hace en tu propio ordenador: **ningún audio sale de tu equipo**.
+Dicto vive en la bandeja del sistema (Windows y Linux) o en la barra de menús (macOS) y convierte tu voz en texto en **cualquier aplicación**: el navegador, Word, Slack, tu editor de código, la terminal… Usa [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) de NVIDIA a través de [onnx-asr](https://github.com/istupakov/onnx-asr), así que la transcripción se hace en tu propio ordenador: **ningún audio sale de tu equipo**.
 
 - 💻 **Windows, Mac y Linux.** Mismo funcionamiento en Windows 10/11, macOS (Intel y Apple Silicon) y Linux con X11.
 - 🎙️ **Pulsar y hablar.** Mantén `Ctrl derecho` en Windows y Linux u `Opción derecha` en Mac (o el atajo que elijas), habla y suelta. El texto se pega solo.
 - 🔁 **Dos modos.** *Mantener pulsado* o *pulsar para empezar y parar*, para dictados largos.
-- ⚡ **Rápido con GPU.** En Windows usa CUDA si tienes una NVIDIA, y en Linux si además tienes CUDA 12 y cuDNN 9 instalados; si no (y siempre en Mac), funciona en CPU sin tocar nada.
-- 🌍 **Multilingüe.** Español, inglés, catalán, portugués, francés, alemán, italiano o detección automática.
+- ⚡ **Casi instantáneo.** Parakeet transcribe una frase de 7 s en unos 0,1 s en un Mac M4, en CPU y sin GPU.
+- 🌍 **Multilingüe.** Detecta solo el idioma entre 25 lenguas europeas: español, inglés, portugués, francés, alemán, italiano…
 - 📚 **Diccionario propio.** Enséñale nombres, marcas o términos técnicos que suele escribir mal.
 - 🗂️ **Historial.** Tus últimas 500 transcripciones, agrupadas por día y listas para copiar, con estadísticas de palabras, velocidad y racha.
 - 🟢 **Indicador flotante.** Una pequeña píldora muestra el nivel del micrófono mientras grabas y avisa cuando transcribe.
@@ -44,7 +44,7 @@ Dicto vive en la bandeja del sistema (Windows y Linux) o en la barra de menús (
   tecla pulsada ──► micrófono (16 kHz) ──► tecla suelta
                                               │
                                               ▼
-                         Whisper local (GPU / CPU) + filtro de silencios
+                       Parakeet local (CPU) + filtro de silencios
                                               │
                                               ▼
                           texto ──► portapapeles ──► Ctrl+V / ⌘V en la app activa
@@ -76,7 +76,7 @@ Descarga **[Dicto-Windows-Setup.exe](https://github.com/arocafull00/dicto/releas
 <details>
 <summary><b>Instalar desde el código fuente</b></summary>
 
-**Requisitos:** Windows 10/11, [Python 3.10 o superior](https://www.python.org/downloads/) (marca *Add python.exe to PATH* al instalarlo) y un micrófono. Una GPU NVIDIA es opcional pero muy recomendable.
+**Requisitos:** Windows 10/11, [Python 3.10 o superior](https://www.python.org/downloads/) (marca *Add python.exe to PATH* al instalarlo) y un micrófono. No hace falta GPU.
 
 1. Descarga el proyecto: botón verde **Code → Download ZIP** y descomprímelo, o con Git:
 
@@ -84,7 +84,7 @@ Descarga **[Dicto-Windows-Setup.exe](https://github.com/arocafull00/dicto/releas
    git clone https://github.com/arocafull00/dicto.git
    ```
 
-2. Abre **`instalar.bat`** con doble clic. Crea el entorno de Python, instala las dependencias (con soporte CUDA solo si detecta una GPU NVIDIA) y abre Dicto.
+2. Abre **`instalar.bat`** con doble clic. Crea el entorno de Python, instala las dependencias y abre Dicto.
 
 ¡Y ya está! A partir de ahí, abre Dicto desde el acceso directo del menú Inicio o del escritorio.
 
@@ -98,9 +98,9 @@ python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-Sin GPU NVIDIA puedes quitar antes `nvidia-cublas-cu12` y `nvidia-cudnn-cu12` de `requirements.txt`. Después, abre `dicto.bat`.
+Después, abre `dicto.bat`.
 
-Para generar el instalador: `pyinstaller --noconfirm packaging/dicto.spec` y después `iscc packaging\dicto.iss` ([Inno Setup](https://jrsoftware.org/isinfo.php)). El flujo `.github/workflows/build.yml` lo hace solo al subir una etiqueta `v*` y crea un borrador de *release* con `Dicto-Windows-Setup.exe` y `Dicto-macOS.dmg`. El instalador no incluye CUDA: si Dicto detecta una GPU NVIDIA, descarga cuBLAS y cuDNN (~1,3 GB) la primera vez que se abre, en `%LOCALAPPDATA%\Dicto\cuda`, y mientras tanto funciona en CPU.
+Para generar el instalador: `pyinstaller --noconfirm packaging/dicto.spec` y después `iscc packaging\dicto.iss` ([Inno Setup](https://jrsoftware.org/isinfo.php)). El flujo `.github/workflows/build.yml` lo hace solo al subir una etiqueta `v*` y crea un borrador de *release* con `Dicto-Windows-Setup.exe` y `Dicto-macOS.dmg`.
 
 </details>
 
@@ -160,9 +160,6 @@ Si falta alguno, Dicto lo avisa al abrirse con un botón que lleva al ajuste. Ta
 > [!WARNING]
 > Si Dicto se abre pero el atajo no hace nada, casi siempre es la **Monitorización de entrada**. Tras actualizar Dicto (o Python, si lo instalaste con Homebrew), macOS deja de reconocer la app aunque el interruptor siga encendido. Quita **Dicto** (o **Python**) de la lista con el botón **−**, sal de Dicto y vuelve a abrirlo: reaparecerá apagado. Actívalo y abre Dicto una vez más.
 
-> [!NOTE]
-> En Mac no hay CUDA, así que Whisper se ejecuta en la CPU. En Apple Silicon el modelo Turbo va bien; en Macs Intel elige *Small* o *Base* para que vaya fluido.
-
 ### 🐧 Linux
 
 **Requisitos:** una distribución con `apt` (Ubuntu, Debian, Mint…), `dnf` (Fedora), `pacman` (Arch) o `zypper` (openSUSE), sesión **X11** y un micrófono.
@@ -184,30 +181,28 @@ En GNOME, el icono de la bandeja necesita la extensión *AppIndicator*, que Ubun
 
 ### La primera vez que se abre
 
-1. **Se descarga el modelo de voz** desde Hugging Face, una sola vez. Con el modelo Turbo son unos **1,6 GB**, así que puede tardar varios minutos: mientras tanto el icono se ve ⚪ gris. Cuando se pone 🟢 verde, ya puedes dictar.
+1. **Se descarga el modelo de voz** desde Hugging Face, una sola vez. Son unos **640 MB**, así que puede tardar unos minutos: mientras tanto el icono se ve ⚪ gris. Cuando se pone 🟢 verde, ya puedes dictar.
 2. Se crean los accesos directos: menú Inicio y escritorio en Windows, `~/Applications/Dicto.app` en Mac y el menú de aplicaciones en Linux.
-3. Se abre la ventana de Dicto en *Ajustes* para que elijas el atajo, el idioma y el micrófono.
+3. Se abre la ventana de Dicto en *Ajustes* para que elijas el atajo y el micrófono.
 
 > [!NOTE]
-> Los modelos se guardan en `~/.cache/huggingface` (`%USERPROFILE%\.cache\huggingface` en Windows). Si cambias de modelo en la configuración, el nuevo se descarga la primera vez que lo uses. Después, Dicto funciona sin internet.
+> El modelo se guarda en la carpeta `models` de Dicto (ver [Configuración](#-configuración)). Después, Dicto funciona sin internet.
 
 > [!TIP]
-> Sin GPU, Dicto funciona en CPU automáticamente. Elige un modelo más ligero (*Small* o *Base*) para que vaya fluido.
+> Dicto funciona en CPU en cualquier equipo; no hace falta GPU.
 
 ## 🎛️ Configuración
 
 Haz clic en el icono de la bandeja (Windows y Linux) o de la barra de menús (Mac) para abrir Dicto. La ventana tiene tres secciones y sigue el tema claro u oscuro del sistema:
 
 - **Inicio:** tus estadísticas (palabras dictadas, palabras por minuto y días seguidos) y el historial de transcripciones agrupado por día. Pasa el ratón por una para copiarla o borrarla.
-- **Diccionario:** nombres, marcas o términos que Whisper debe reconocer mejor.
+- **Diccionario:** nombres, marcas o términos que Dicto suele escribir mal. Corrige el texto con ellos al terminar.
 - **Ajustes:** todo lo demás. Los cambios se guardan al momento.
 
 | Opción | Descripción |
 | --- | --- |
 | **Atajo** | Cualquier tecla o combinación. Pulsa *Cambiar* y presiónala. |
 | **Modo** | *Mantener pulsado* o *Pulsar para empezar y parar*. |
-| **Idioma** | Idioma del dictado o detección automática. |
-| **Modelo** | Turbo (recomendado), Large v3, Medium, Small o Base. |
 | **Micrófono** | El predeterminado del sistema o uno concreto. |
 | **Opciones** | Sonidos, indicador flotante e inicio automático al encender. |
 
@@ -219,19 +214,13 @@ Los ajustes se guardan en `config.json`, el historial en `history.json` y el reg
 - **macOS:** `~/Library/Application Support/Dicto/`
 - **Linux:** `~/.config/Dicto/`
 
-## 🧠 Modelos
+## 🧠 Modelo
 
-| Modelo | Descarga | Velocidad | Precisión | Ideal para |
-| --- | :---: | :---: | :---: | --- |
-| `large-v3-turbo` | ~1,6 GB | ⚡⚡⚡ | ★★★★ | Uso diario con GPU o Apple Silicon *(por defecto)* |
-| `large-v3` | ~3 GB | ⚡ | ★★★★★ | Máxima precisión |
-| `medium` | ~1,5 GB | ⚡⚡ | ★★★ | GPUs modestas |
-| `small` | ~500 MB | ⚡⚡⚡ | ★★ | CPU |
-| `base` | ~150 MB | ⚡⚡⚡⚡ | ★ | Equipos muy ligeros |
+Dicto usa **Parakeet TDT 0.6B v3** de NVIDIA (~640 MB, int8) a través de [onnx-asr](https://github.com/istupakov/onnx-asr). Se descarga la primera vez que abres Dicto, va en CPU en cualquier equipo y detecta solo el idioma entre 25 lenguas europeas: español, inglés, portugués, francés, alemán, italiano, neerlandés, polaco, ruso… (catalán no está). Pone puntuación y mayúsculas. Al arrancar, Dicto lo calienta con un segundo de silencio para que la primera transcripción ya sea rápida.
 
 ## 🔒 Privacidad
 
-La transcripción ocurre en tu máquina, sin cuentas, telemetría ni envío de audio al mantenedor. Dicto descarga los modelos desde Hugging Face y, en Windows con GPU NVIDIA, puede descargar bibliotecas CUDA desde PyPI. Una vez disponibles el modelo y las dependencias, el dictado funciona sin conexión.
+La transcripción ocurre en tu máquina, sin cuentas, telemetría ni envío de audio al mantenedor. Dicto descarga el modelo desde Hugging Face una sola vez. Después, el dictado funciona sin conexión.
 
 El historial, los ajustes y los contadores se guardan localmente. El archivo `dicto.log` también puede contener texto transcrito. Borrar el historial no borra ese registro. Consulta la [política de privacidad](https://adrianrocafulldev.es/dicto/privacidad) para conocer las ubicaciones de los archivos, los servicios externos y cómo eliminar todos los datos.
 
@@ -244,13 +233,15 @@ Si se aprueba la solicitud y se activa la integración: Free code signing provid
 - Autor y committer: [Adrián Rocafull (arocafull00)](https://github.com/arocafull00).
 - Revisor de contribuciones externas: Adrián Rocafull.
 - Aprobador de solicitudes de firma: Adrián Rocafull. Cada solicitud requerirá aprobación manual; antes de activar la integración se deberá verificar MFA en GitHub y SignPath.
-- Instaladores compilados desde el repositorio público con GitHub Actions. Los binarios de terceros no se presentarán como código propio para su firma. La compatibilidad de las bibliotecas CUDA opcionales con el programa queda pendiente de revisión por SignPath.
+- Instaladores compilados desde el repositorio público con GitHub Actions. Los binarios de terceros no se presentarán como código propio para su firma.
 
 ## Desinstalación
 
-En Windows, usa **Ajustes → Aplicaciones → Dicto → Desinstalar**. En macOS, desactiva primero el inicio automático en Dicto y elimina `~/Applications/Dicto.app`; si usaste Homebrew, ejecuta `brew uninstall dicto`. En Linux, desactiva el inicio automático, borra la carpeta que clonaste y elimina `~/.local/share/applications/dicto.desktop`.
+Lo más fácil: en Dicto, **Ajustes → Desinstalar**. Dicto se cierra y borra el programa, el modelo de voz, el historial y los ajustes. Si lo instalaste con Homebrew o Scoop, después ejecuta `brew uninstall dicto` o `scoop uninstall dicto`. Si lo clonaste con Git, se borra el entorno de Python pero la carpeta del código se queda.
 
-La desinstalación puede conservar los datos personales. Para borrarlos, cierra Dicto y elimina `%APPDATA%\Dicto\` (Windows), `~/Library/Application Support/Dicto/` (macOS) o `~/.config/Dicto/` (Linux). Los modelos descargados están aparte, normalmente en `~/.cache/huggingface/`; elimina solo los correspondientes a Dicto si otras aplicaciones usan esa caché.
+A mano: en Windows, usa **Ajustes → Aplicaciones → Dicto → Desinstalar**. En macOS, desactiva primero el inicio automático en Dicto y elimina `~/Applications/Dicto.app`; si usaste Homebrew, ejecuta `brew uninstall dicto`. En Linux, desactiva el inicio automático, borra la carpeta que clonaste y elimina `~/.local/share/applications/dicto.desktop`.
+
+La desinstalación puede conservar los datos personales. Para borrarlos, cierra Dicto y elimina `%APPDATA%\Dicto\` (Windows), `~/Library/Application Support/Dicto/` (macOS) o `~/.config/Dicto/` (Linux). El modelo descargado está en la carpeta `models` dentro de esa misma ruta.
 
 ## Licencia
 
@@ -258,4 +249,4 @@ Dicto se distribuye bajo la [licencia MIT](LICENSE). Los modelos y componentes d
 
 ## 🛠️ Hecho con
 
-[faster-whisper](https://github.com/SYSTRAN/faster-whisper) · [sounddevice](https://github.com/spatialaudio/python-sounddevice) · [keyboard](https://github.com/boppreh/keyboard) · [PyObjC](https://pyobjc.readthedocs.io) · [pynput](https://github.com/moses-palmer/pynput) · [pystray](https://github.com/moses-palmer/pystray) · [pyperclip](https://github.com/asweigart/pyperclip) · [Pillow](https://python-pillow.org) · Tkinter
+[onnx-asr](https://github.com/istupakov/onnx-asr) · [sounddevice](https://github.com/spatialaudio/python-sounddevice) · [keyboard](https://github.com/boppreh/keyboard) · [PyObjC](https://pyobjc.readthedocs.io) · [pynput](https://github.com/moses-palmer/pynput) · [pystray](https://github.com/moses-palmer/pystray) · [pyperclip](https://github.com/asweigart/pyperclip) · [Pillow](https://python-pillow.org) · Tkinter

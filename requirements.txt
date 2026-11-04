@@ -1,4 +1,4 @@
-faster-whisper
+onnx-asr[cpu,hub]
 sounddevice
 numpy
 keyboard; sys_platform == "win32"
@@ -9,5 +9,3 @@ pyperclip
 pystray
 pillow
 pywebview
-nvidia-cublas-cu12; sys_platform == "win32"
-nvidia-cudnn-cu12==9.*; sys_platform == "win32"

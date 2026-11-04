@@ -261,7 +261,7 @@ kbd {
 
   <section class="page" id="page-dictionary">
     <h1>Diccionario</h1>
-    <p class="lead">Nombres, marcas o términos técnicos que Dicto suele escribir mal. Se le pasan a Whisper como pista para que los reconozca.</p>
+    <p class="lead">Nombres, marcas o términos técnicos que Dicto suele escribir mal. Dicto corrige el texto con ellos al terminar de transcribir.</p>
     <form class="add" id="dictForm">
       <input class="field" id="dictInput" placeholder="Añade una palabra o un nombre…" autocomplete="off">
       <button class="btn primary" type="submit">Añadir</button>
@@ -282,14 +282,6 @@ kbd {
       <div class="setting">
         <div class="label"><b>Modo</b><small>Cómo se usa el atajo</small></div>
         <div class="control"><div class="select"><select data-key="mode"></select></div></div>
-      </div>
-      <div class="setting">
-        <div class="label"><b>Idioma</b><small>Idioma en el que hablas</small></div>
-        <div class="control"><div class="select"><select data-key="language"></select></div></div>
-      </div>
-      <div class="setting">
-        <div class="label"><b>Modelo</b><small>Más grande es más preciso, pero más lento</small></div>
-        <div class="control"><div class="select"><select data-key="model"></select></div></div>
       </div>
       <div class="setting">
         <div class="label"><b>Micrófono</b><small>Dispositivo de entrada</small></div>
@@ -318,6 +310,14 @@ kbd {
       <div class="setting">
         <div class="label"><b>Borrar transcripciones</b><small>Se guardan las últimas 500 en este equipo</small></div>
         <button class="btn danger" id="clearBtn">Borrar todo</button>
+      </div>
+    </div>
+
+    <div class="card-title">Desinstalar</div>
+    <div class="card">
+      <div class="setting">
+        <div class="label"><b>Desinstalar Dicto</b><small>Borra el programa, el modelo de voz, el historial y los ajustes. Dicto se cerrará.</small></div>
+        <button class="btn danger" id="uninstallBtn">Desinstalar</button>
       </div>
     </div>
   </section>
@@ -528,8 +528,6 @@ function renderSettings() {
   $("#captureBtn").disabled = state.capturing;
   $("#hotkeyHint").textContent = cfg.mode === "toggle" ? "Pulsa para empezar y para terminar" : "Mantén pulsado para dictar";
   fillSelect("mode", options.modes, cfg.mode);
-  fillSelect("language", options.languages, cfg.language);
-  fillSelect("model", options.models, cfg.model);
   const mics = [[options.defaultMic, ""], ...options.mics.map(m => [m, m])];
   if (cfg.device && !options.mics.includes(cfg.device)) mics.push([cfg.device, cfg.device]);
   fillSelect("device", mics, cfg.device);
@@ -589,6 +587,24 @@ $("#clearBtn").addEventListener("click", e => {
   pywebview.api.clear();
   renderHome();
   toast("Historial borrado");
+});
+
+let uninstallTimer;
+$("#uninstallBtn").addEventListener("click", e => {
+  const b = e.currentTarget;
+  if (!b.classList.contains("armed")) {
+    b.classList.add("armed");
+    b.textContent = "¿Seguro? Se borrará todo";
+    uninstallTimer = setTimeout(() => {
+      b.classList.remove("armed");
+      b.textContent = "Desinstalar";
+    }, 3000);
+    return;
+  }
+  clearTimeout(uninstallTimer);
+  b.disabled = true;
+  b.textContent = "Desinstalando…";
+  pywebview.api.uninstall();
 });
 
 $("#dictForm").addEventListener("submit", e => {

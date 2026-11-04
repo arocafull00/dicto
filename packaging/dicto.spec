@@ -8,8 +8,8 @@ ROOT = os.path.dirname(SPECPATH)
 ICON = os.path.join(ROOT, "dicto.ico")
 ICNS = os.path.join(ROOT, "assets", "dicto.icns")
 
-binaries = collect_dynamic_libs("ctranslate2")
-datas = collect_data_files("faster_whisper") + [(os.path.join(ROOT, "ui.html"), "."), (ICON, ".")]
+binaries = collect_dynamic_libs("onnxruntime")
+datas = collect_data_files("onnx_asr") + [(os.path.join(ROOT, "ui.html"), "."), (ICON, ".")]
 hiddenimports = ["ui"]
 if MAC:
     datas.append((ICNS, "assets"))

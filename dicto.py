@@ -1,18 +1,19 @@
 import ctypes
-import glob
+import difflib
 import json
 import os
 import plistlib
 import queue
+import re
 import shlex
 import shutil
 import subprocess
 import sys
+import string
 import threading
 import time
 import tkinter as tk
-import urllib.request
-import zipfile
+import unicodedata
 
 if __name__ == "__main__" and sys.argv[1:] == ["--ui"]:
     import ui
@@ -46,9 +47,6 @@ PNG_PATH = os.path.join(HERE, "assets", "dicto.png")
 PYTHONW = os.path.join(os.path.dirname(sys.executable), "pythonw.exe") if WIN else sys.executable
 LAUNCH = [sys.executable] if FROZEN else [PYTHONW, os.path.join(HERE, "dicto.py")]
 UI_COMMAND = [sys.executable, "--ui"] if FROZEN else [sys.executable, os.path.join(HERE, "ui.py")]
-PACKAGES = getattr(sys, "_MEIPASS", os.path.join(sys.prefix, "Lib", "site-packages"))
-CUDA_DIR = os.path.join(os.environ.get("LOCALAPPDATA", CONFIG_DIR), APP, "cuda")
-CUDA_PACKAGES = ["nvidia-cublas-cu12", "nvidia-cudnn-cu12", "nvidia-cuda-nvrtc-cu12"]
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 BUNDLE_ID = "io.github.arocafull00.dicto"
 if MAC and FROZEN:
@@ -61,7 +59,11 @@ DESKTOP_FILE = os.path.join(XDG_DATA, "applications", "dicto.desktop")
 AUTOSTART_FILE = os.path.join(os.path.dirname(CONFIG_DIR), "autostart", "dicto.desktop")
 RATE = 16000
 CHUNK_MIN = 8
-CHUNK_MAX = 25
+CHUNK_MAX = 20
+PARAKEET_REPO = "istupakov/parakeet-tdt-0.6b-v3-onnx"
+PARAKEET_DIR = os.path.join(CONFIG_DIR, "models", "parakeet-tdt-0.6b-v3")
+PARAKEET_FILES = ["encoder-model.int8.onnx", "decoder_joint-model.int8.onnx", "nemo128.onnx", "vocab.txt", "config.json"]
+PUNCT = string.punctuation + "¿¡«»…—“”‘’"
 
 os.makedirs(CONFIG_DIR, exist_ok=True)
 if sys.stdout is None or sys.stderr is None:
@@ -70,44 +72,11 @@ else:
     sys.stdout.reconfigure(line_buffering=True)
 
 
-def add_cuda_dirs():
-    for d in glob.glob(os.path.join(PACKAGES, "nvidia", "*", "bin")) + glob.glob(os.path.join(CUDA_DIR, "nvidia", "*", "bin")):
-        if d not in os.environ["PATH"]:
-            os.add_dll_directory(d)
-            os.environ["PATH"] = d + os.pathsep + os.environ["PATH"]
-
-
-def cuda_ready():
-    return any(glob.glob(os.path.join(root, "nvidia", "cudnn", "bin", "cudnn64_*.dll")) for root in (PACKAGES, CUDA_DIR))
-
-
-def has_nvidia():
-    return os.path.exists(os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "nvcuda.dll"))
-
-
-def download_cuda():
-    tmp = CUDA_DIR + ".partial"
-    os.makedirs(tmp, exist_ok=True)
-    for name in CUDA_PACKAGES:
-        with urllib.request.urlopen(f"https://pypi.org/pypi/{name}/json") as r:
-            files = json.load(r)["urls"]
-        url = next(f["url"] for f in files if f["filename"].endswith("win_amd64.whl"))
-        wheel = os.path.join(tmp, name + ".whl")
-        urllib.request.urlretrieve(url, wheel)
-        with zipfile.ZipFile(wheel) as z:
-            z.extractall(tmp, [m for m in z.namelist() if m.startswith("nvidia/") and m.lower().endswith(".dll")])
-        os.remove(wheel)
-    os.replace(tmp, CUDA_DIR)
-
-
-if WIN:
-    add_cuda_dirs()
-
 import numpy as np
+import onnx_asr
 import pyperclip
 import pystray
 import sounddevice as sd
-from faster_whisper import WhisperModel
 from PIL import Image, ImageDraw
 
 if MAC:
@@ -121,8 +90,6 @@ else:
 DEFAULTS = {
     "hotkey": "right option" if MAC else "right ctrl",
     "mode": "hold",
-    "language": "es",
-    "model": "large-v3-turbo",
     "device": "",
     "vocabulary": "",
     "sounds": True,
@@ -131,23 +98,6 @@ DEFAULTS = {
 }
 
 MODES = {"Mantener pulsado": "hold", "Pulsar para empezar y parar": "toggle"}
-LANGUAGES = {
-    "Español": "es",
-    "English": "en",
-    "Català": "ca",
-    "Português": "pt",
-    "Français": "fr",
-    "Deutsch": "de",
-    "Italiano": "it",
-    "Detectar automáticamente": "auto",
-}
-MODELS = {
-    "Turbo · rápido y preciso (recomendado)": "large-v3-turbo",
-    "Large v3 · máxima precisión, más lento": "large-v3",
-    "Medium": "medium",
-    "Small · ligero": "small",
-    "Base · muy ligero": "base",
-}
 DEFAULT_MIC = "Predeterminado del sistema"
 
 COLORS = {"loading": "#8a8f98", "idle": "#216B50", "recording": "#e5484d", "processing": "#f5a524"}
@@ -264,12 +214,12 @@ def write_desktop_entry(path):
             "[Desktop Entry]\n"
             "Type=Application\n"
             f"Name={APP}\n"
-            "Comment=Dictado por voz 100 % local con Whisper\n"
+            "Comment=Dictado por voz 100 % local\n"
             f"Exec={shlex.join(LAUNCH)}\n"
             "Icon=dicto\n"
             "Terminal=false\n"
             "Categories=Utility;Accessibility;AudioVideo;\n"
-            "Keywords=dictado;voz;whisper;transcripción;\n"
+            "Keywords=dictado;voz;parakeet;transcripción;\n"
             f"StartupWMClass={APP}\n"
         )
 
@@ -300,7 +250,7 @@ def ensure_shortcuts():
         "$l = $s.CreateShortcut((Join-Path $p 'Dicto.lnk')); "
         "$l.TargetPath = $env:DICTO_TARGET; $l.Arguments = $env:DICTO_ARGS; "
         "$l.WorkingDirectory = $env:DICTO_DIR; $l.IconLocation = $env:DICTO_ICON; "
-        "$l.Description = 'Dictado local con Whisper'; $l.Save() }"
+        "$l.Description = 'Dictado por voz local'; $l.Save() }"
     )
     env = dict(
         os.environ,
@@ -315,6 +265,61 @@ def ensure_shortcuts():
         creationflags=subprocess.CREATE_NO_WINDOW,
         check=False,
     )
+
+
+def uninstall_plan():
+    """Rutas que se borran al desinstalar, el desinstalador de Windows y lo que quede por hacer a mano."""
+    paths, uninstaller, note = [CONFIG_DIR], "", ""
+    real = os.path.realpath(HERE)
+    if FROZEN and MAC:
+        paths.append(APP_BUNDLE)
+    elif FROZEN and WIN:
+        exe_dir = os.path.dirname(sys.executable)
+        uninstaller = next((os.path.join(exe_dir, f) for f in sorted(os.listdir(exe_dir)) if f.lower().startswith("unins") and f.lower().endswith(".exe")), "")
+    elif FROZEN:
+        paths.append(os.path.dirname(sys.executable))
+    elif "/Cellar/" in real:
+        note = "Para quitar el resto, ejecuta en la Terminal: brew uninstall dicto"
+    elif "\\scoop\\apps\\" in real.lower():
+        note = "Para quitar el resto, ejecuta en PowerShell: scoop uninstall dicto"
+    elif os.path.isdir(os.path.join(HERE, ".git")):
+        # Es un clon de Git: se borra el entorno de Python, pero no el código.
+        paths.append(os.path.join(HERE, ".venv"))
+        note = f"La carpeta del código sigue en {HERE}. Bórrala si ya no la necesitas."
+    else:
+        paths.append(HERE)
+    if MAC and not FROZEN:
+        paths.append(APP_BUNDLE)
+    if LINUX:
+        paths.append(DESKTOP_FILE)
+        icons = os.path.join(HERE, "assets", "linux", "icons")
+        for d, _, files in os.walk(icons):
+            paths += [os.path.join(XDG_DATA, "icons", os.path.relpath(d, icons), f) for f in files]
+    return paths, uninstaller, note
+
+
+UNINSTALL_SH = (
+    'while kill -0 "$DICTO_PID" 2>/dev/null; do sleep 0.2; done\n'
+    'rm -rf -- "$@"\n'
+    'if [ "$(uname)" = Darwin ]; then\n'
+    f"  tccutil reset All {BUNDLE_ID} >/dev/null 2>&1\n"
+    "  osascript -e 'on run argv' -e 'display dialog (item 1 of argv) with title \"Dicto\" buttons {\"OK\"} default button 1'"
+    ' -e \'end run\' "$DICTO_MSG"\n'
+    "else\n"
+    '  notify-send -a Dicto Dicto "$DICTO_MSG" >/dev/null 2>&1\n'
+    "fi\n"
+)
+UNINSTALL_PS = (
+    "Wait-Process -Id $env:DICTO_PID -ErrorAction SilentlyContinue; "
+    "if ($env:DICTO_UNINSTALLER) { "
+    "Start-Process -Wait $env:DICTO_UNINSTALLER -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' }; "
+    "if ($env:DICTO_LINKS) { foreach ($f in 'Programs', 'Desktop') { "
+    "Remove-Item (Join-Path ([Environment]::GetFolderPath($f)) 'Dicto.lnk') -Force -ErrorAction SilentlyContinue } }; "
+    "foreach ($p in $env:DICTO_PATHS.Split('|')) { if ($p) { "
+    "Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue } }; "
+    "Add-Type -AssemblyName PresentationFramework; "
+    "[System.Windows.MessageBox]::Show($env:DICTO_MSG, 'Dicto') | Out-Null"
+)
 
 
 def input_devices():
@@ -356,18 +361,56 @@ def paste(text):
     pyperclip.copy(text)
     time.sleep(0.05)
     keyboard.send("cmd+v" if MAC else "ctrl+v")
-    time.sleep(0.3)
     if previous is not None:
-        pyperclip.copy(previous)
+        # La app activa lee el portapapeles un poco después del ⌘V; se restaura sin bloquear.
+        threading.Timer(0.3, pyperclip.copy, [previous]).start()
 
 
-def load_model(name):
-    if (WIN and cuda_ready()) or (LINUX and shutil.which("nvidia-smi")):
-        try:
-            return WhisperModel(name, device="cuda", compute_type="float16")
-        except Exception as e:
-            print(f"GPU no disponible ({e}); usando CPU.")
-    return WhisperModel(name, device="cpu", compute_type="int8")
+def warm_up(fn):
+    """La primera transcripción tras cargar un modelo tarda varios segundos; se hace aquí con silencio."""
+    try:
+        fn()
+    except Exception as e:
+        print(f"No se pudo calentar el modelo: {e}")
+
+
+def parakeet_downloaded():
+    return all(os.path.exists(os.path.join(PARAKEET_DIR, f)) for f in PARAKEET_FILES)
+
+
+def load_parakeet():
+    if not parakeet_downloaded():
+        from huggingface_hub import snapshot_download
+
+        # En una carpeta propia: onnxruntime rechaza los pesos externos si van por los enlaces de la caché de Hugging Face.
+        snapshot_download(PARAKEET_REPO, local_dir=PARAKEET_DIR, allow_patterns=PARAKEET_FILES)
+    return onnx_asr.load_model(
+        "nemo-parakeet-tdt-0.6b-v3", PARAKEET_DIR, quantization="int8", providers=["CPUExecutionProvider"]
+    )
+
+
+def normalize(s):
+    s = unicodedata.normalize("NFD", s.lower())
+    return "".join(c for c in s if c.isalnum() and unicodedata.category(c) != "Mn")
+
+
+def apply_vocabulary(text, vocabulary):
+    """Sustituye en el texto lo que se parezca a una palabra del diccionario (acentos, mayúsculas, letras cambiadas)."""
+    words = text.split()
+    for term in (t.strip() for t in re.split(r"[,\n]", vocabulary)):
+        key, n = normalize(term), len(term.split())
+        if len(key) < 3:
+            continue
+        i = 0
+        while i + n <= len(words):
+            span = " ".join(words[i : i + n])
+            core = span.strip(PUNCT)
+            if core and difflib.SequenceMatcher(None, normalize(core), key).ratio() >= 0.8:
+                lead = span[: len(span) - len(span.lstrip(PUNCT))]
+                trail = span[len(span.rstrip(PUNCT)) :]
+                words[i : i + n] = [lead + term + trail]
+            i += 1
+    return " ".join(words)
 
 
 def find_cut(audio):
@@ -390,36 +433,26 @@ def find_cut(audio):
 class Engine:
     def __init__(self, app):
         self.app = app
-        self.model = None
-        self.model_name = None
+        self.parakeet = None
         self.stream = None
         self.device = None
         self.chunks = []
+        self.parts = []
+        self.audio = threading.Event()
         self.recording = False
         self.level = 0.0
         self.paused = False
         self.dirty = threading.Event()
         self.last_text = ""
 
-    def get_cuda(self):
-        self.app.notify("Tienes una GPU NVIDIA. Descargando el soporte de GPU (~1,3 GB) en segundo plano; mientras tanto Dicto usa la CPU.")
-        try:
-            download_cuda()
-        except Exception as e:
-            print(f"No se pudo descargar el soporte de GPU: {e}")
-            return
-        add_cuda_dirs()
-        self.model_name = None
-        self.dirty.set()
-        self.app.notify("Soporte de GPU listo. Dicto ya usa tu NVIDIA.")
-
     def configure(self):
         cfg = self.app.cfg
-        if cfg["model"] != self.model_name:
+        if self.parakeet is None:
             self.app.set_status("loading")
-            self.model = None
-            self.model = load_model(cfg["model"])
-            self.model_name = cfg["model"]
+            if not parakeet_downloaded():
+                self.app.notify("Descargando el modelo de voz (~640 MB). Solo pasa la primera vez.")
+            self.parakeet = load_parakeet()
+            warm_up(lambda: self.parakeet.recognize(np.zeros(RATE, np.float32), sample_rate=RATE))
         if self.stream is None or cfg["device"] != self.device:
             if self.stream:
                 self.stream.close()
@@ -441,6 +474,7 @@ class Engine:
         if self.recording:
             self.chunks.append(indata[:, 0].copy())
             self.level = float(np.sqrt(np.mean(indata**2)))
+            self.audio.set()
 
     def run(self):
         try:
@@ -449,8 +483,6 @@ class Engine:
             self.app.notify(f"No se pudo iniciar: {e}")
             raise
         self.app.on_ready()
-        if WIN and not cuda_ready() and has_nvidia():
-            threading.Thread(target=self.get_cuda, daemon=True).start()
         was_down = False
         while True:
             if self.dirty.is_set():
@@ -470,7 +502,7 @@ class Engine:
                     self.stop()
                 else:
                     self.start()
-            time.sleep(0.02)
+            time.sleep(0.01)
 
     def start(self):
         self.chunks = []
@@ -484,16 +516,8 @@ class Engine:
             beep(True)
 
     def transcribe(self, audio):
-        cfg = self.app.cfg
-        prompt = f"{cfg['vocabulary'].strip()} {' '.join(self.parts)[-200:]}".strip()
-        segments, _ = self.model.transcribe(
-            audio,
-            language=None if cfg["language"] == "auto" else cfg["language"],
-            beam_size=5,
-            vad_filter=True,
-            initial_prompt=prompt or None,
-        )
-        return " ".join(s.text.strip() for s in segments).strip()
+        text = self.parakeet.recognize(audio, sample_rate=RATE).strip()
+        return apply_vocabulary(text, self.app.cfg["vocabulary"])
 
     def transcribe_live(self):
         buf = np.zeros(0, np.float32)
@@ -509,7 +533,8 @@ class Engine:
                 break
             cut = find_cut(buf) if cutting else None
             if not cut:
-                time.sleep(0.2)
+                self.audio.wait(0.1)
+                self.audio.clear()
                 continue
             try:
                 text = self.transcribe(buf[:cut])
@@ -525,6 +550,7 @@ class Engine:
     def stop(self):
         cfg = self.app.cfg
         self.recording = False
+        self.audio.set()
         if cfg["sounds"]:
             beep(False)
         seconds = sum(map(len, self.chunks)) / RATE
@@ -725,11 +751,7 @@ class App:
             self.notify(f"Listo. Mantén pulsado «{self.cfg['hotkey']}» para dictar. Haz clic en el icono para configurarlo.")
 
     def status_info(self):
-        model = self.engine.model
-        if self.status == "loading" or model is None:
-            detail = self.cfg["model"]
-        else:
-            detail = f"{self.engine.model_name} · {'GPU' if model.model.device == 'cuda' else 'CPU'}"
+        detail = "Parakeet v3 · CPU"
         return {"state": self.status, "label": STATUS_TEXT[self.status], "detail": detail}
 
     def open_window(self, page="home"):
@@ -751,8 +773,6 @@ class App:
                 "cfg": self.cfg,
                 "options": {
                     "modes": [[k, v] for k, v in MODES.items()],
-                    "languages": [[k, v] for k, v in LANGUAGES.items()],
-                    "models": [[k, v] for k, v in MODELS.items()],
                     "mics": input_devices(),
                     "defaultMic": DEFAULT_MIC,
                 },
@@ -795,6 +815,8 @@ class App:
         elif cmd == "clear":
             self.history["items"] = []
             save_history(self.history)
+        elif cmd == "uninstall":
+            self.uninstall()
 
     def capture_hotkey(self):
         self.engine.paused = True
@@ -826,6 +848,25 @@ class App:
         save_config(cfg)
         set_autostart(cfg["autostart"])
         self.engine.dirty.set()
+
+    def uninstall(self):
+        """Un proceso aparte espera a que Dicto se cierre y borra el programa, el modelo y los datos."""
+        set_autostart(False)
+        paths, uninstaller, note = uninstall_plan()
+        print(f"Desinstalando: {paths} {uninstaller}")
+        env = dict(os.environ, DICTO_PID=str(os.getpid()), DICTO_MSG="Dicto se ha desinstalado." + (f"\n\n{note}" if note else ""))
+        quiet = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=os.path.expanduser("~"))
+        if WIN:
+            env.update(DICTO_PATHS="|".join(paths), DICTO_UNINSTALLER=uninstaller, DICTO_LINKS="" if FROZEN else "1")
+            subprocess.Popen(
+                ["powershell", "-NoProfile", "-Command", UNINSTALL_PS],
+                env=env,
+                creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP,
+                **quiet,
+            )
+        else:
+            subprocess.Popen(["/bin/sh", "-c", UNINSTALL_SH, "sh", *paths], env=env, start_new_session=True, **quiet)
+        self.quit()
 
     def quit(self):
         if self.ui:

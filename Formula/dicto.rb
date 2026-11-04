@@ -1,5 +1,5 @@
 class Dicto < Formula
-  desc "Dictado por voz 100 % local con Whisper"
+  desc "Dictado por voz 100 % local"
   homepage "https://github.com/arocafull00/dicto"
   head "https://github.com/arocafull00/dicto.git", branch: "main"
 
