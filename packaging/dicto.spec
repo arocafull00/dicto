@@ -1,7 +1,7 @@
 import os
 import sys
 
-from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, copy_metadata
 
 MAC = sys.platform == "darwin"
 ROOT = os.path.dirname(SPECPATH)
@@ -9,7 +9,7 @@ ICON = os.path.join(ROOT, "dicto.ico")
 ICNS = os.path.join(ROOT, "assets", "dicto.icns")
 
 binaries = collect_dynamic_libs("onnxruntime")
-datas = collect_data_files("onnx_asr") + [(os.path.join(ROOT, "ui.html"), "."), (ICON, ".")]
+datas = collect_data_files("onnx_asr") + copy_metadata("onnx-asr") + [(os.path.join(ROOT, "ui.html"), "."), (ICON, ".")]
 hiddenimports = ["ui"]
 if MAC:
     datas.append((ICNS, "assets"))
