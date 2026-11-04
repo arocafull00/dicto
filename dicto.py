@@ -66,6 +66,8 @@ CHUNK_MAX = 25
 os.makedirs(CONFIG_DIR, exist_ok=True)
 if sys.stdout is None or sys.stderr is None:
     sys.stdout = sys.stderr = open(LOG_PATH, "a", encoding="utf-8", buffering=1)
+else:
+    sys.stdout.reconfigure(line_buffering=True)
 
 
 def add_cuda_dirs():
@@ -647,6 +649,7 @@ class App:
                     lambda: pyperclip.copy(self.engine.last_text),
                     enabled=lambda item: bool(self.engine.last_text),
                 ),
+                pystray.MenuItem("Permisos de macOS…", lambda: self.check_mac_permissions(manual=True), visible=MAC),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Salir", lambda: self.post(self.quit)),
             ),
@@ -690,6 +693,32 @@ class App:
             self.tray.notify(message, APP)
         except Exception:
             pass
+
+    def check_mac_permissions(self, manual=False):
+        threading.Thread(target=self.mac_permissions, args=(manual,), daemon=True).start()
+
+    def mac_permissions(self, manual=False):
+        listen, post = keyboard.listen_allowed(), keyboard.post_allowed()
+        print(f"Permisos de macOS: monitorización de entrada={listen}, accesibilidad={post}")
+        if listen and post:
+            if manual:
+                mac_dialog("Dicto tiene todos los permisos que necesita.", ["OK"], icon="note")
+            return
+        missing = []
+        if not listen:
+            missing.append("Monitorización de entrada: detectar el atajo de teclado.")
+        if not post:
+            missing.append("Accesibilidad: pegar el texto con ⌘V.")
+        text = (
+            "Dicto no puede dictar porque le falta este permiso en Ajustes del Sistema › Privacidad y seguridad:\n\n• "
+            + "\n• ".join(missing)
+            + "\n\nPuede aparecer como «Dicto» o como «Python». Actívalo y después sal de Dicto y vuelve a abrirlo."
+            "\n\nSi ya aparece activado, quítalo de la lista con el botón −, sal de Dicto y vuelve a abrirlo: "
+            "reaparecerá apagado. Actívalo y vuelve a abrir Dicto una vez más."
+        )
+        if mac_dialog(text, ["Ahora no", "Abrir Ajustes"]) == "Abrir Ajustes":
+            pane = "Privacy_ListenEvent" if not listen else "Privacy_Accessibility"
+            subprocess.Popen(["open", f"x-apple.systempreferences:com.apple.preference.security?{pane}"])
 
     def on_ready(self):
         if self.first_run:
@@ -810,11 +839,9 @@ class App:
             save_config(self.cfg)
             self.open_window("settings")
         self.tray.run_detached()
-        if MAC and not keyboard.start():
-            self.notify(
-                "Dicto necesita permiso de Monitorización de entrada y Accesibilidad. "
-                "Actívalo en Ajustes del Sistema › Privacidad y seguridad y vuelve a abrir Dicto."
-            )
+        if MAC:
+            keyboard.start()
+            self.check_mac_permissions()
         if LINUX and (not keyboard.start() or os.environ.get("XDG_SESSION_TYPE") == "wayland"):
             self.notify(
                 "En Wayland, Dicto solo detecta el atajo y pega en aplicaciones XWayland. "
@@ -830,6 +857,22 @@ def set_window_icon(win):
         win.iconbitmap(ICON_PATH)
     elif LINUX and os.path.exists(PNG_PATH):
         win.iconphoto(True, tk.PhotoImage(master=win, file=PNG_PATH))
+
+
+def mac_dialog(message, buttons, icon="caution"):
+    names = ", ".join(json.dumps(b, ensure_ascii=False) for b in buttons)
+    r = subprocess.run(
+        [
+            "osascript",
+            "-e", "on run argv",
+            "-e", f'display dialog (item 1 of argv) with title "{APP}" with icon {icon} buttons {{{names}}} default button {len(buttons)}',
+            "-e", "end run",
+            message,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    return r.stdout.strip().removeprefix("button returned:")
 
 
 def linux_notify(message):

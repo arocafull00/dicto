@@ -155,6 +155,11 @@ La primera vez, macOS pedirá tres permisos para **Dicto** (en algunos sistemas 
 | **Monitorización de entrada** | Detectar el atajo de teclado en cualquier app. |
 | **Accesibilidad** | Pegar el texto (⌘V) en la app activa. |
 
+Si falta alguno, Dicto lo avisa al abrirse con un botón que lleva al ajuste. También puedes comprobarlo cuando quieras desde el menú de la barra: **Permisos de macOS…**.
+
+> [!WARNING]
+> Si Dicto se abre pero el atajo no hace nada, casi siempre es la **Monitorización de entrada**. Tras actualizar Dicto (o Python, si lo instalaste con Homebrew), macOS deja de reconocer la app aunque el interruptor siga encendido. Quita **Dicto** (o **Python**) de la lista con el botón **−**, sal de Dicto y vuelve a abrirlo: reaparecerá apagado. Actívalo y abre Dicto una vez más.
+
 > [!NOTE]
 > En Mac no hay CUDA, así que Whisper se ejecuta en la CPU. En Apple Silicon el modelo Turbo va bien; en Macs Intel elige *Small* o *Base* para que vaya fluido.
 
