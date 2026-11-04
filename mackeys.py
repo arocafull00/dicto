@@ -98,6 +98,18 @@ def _loop(ready):
     Quartz.CFRunLoopRun()
 
 
+def listen_allowed():
+    """Permiso de Monitorización de entrada: sin él, el tap se crea pero nunca recibe teclas."""
+    fn = getattr(Quartz, "CGPreflightListenEventAccess", None)
+    return bool(fn()) if fn else _tap is not None
+
+
+def post_allowed():
+    """Permiso de Accesibilidad: sin él, el ⌘V que pega el texto se ignora."""
+    fn = getattr(Quartz, "CGPreflightPostEventAccess", None)
+    return bool(fn()) if fn else True
+
+
 def start():
     for request in ("CGRequestListenEventAccess", "CGRequestPostEventAccess"):
         fn = getattr(Quartz, request, None)
@@ -106,7 +118,7 @@ def start():
     ready = threading.Event()
     threading.Thread(target=_loop, args=(ready,), daemon=True).start()
     ready.wait()
-    return _tap is not None
+    return _tap is not None and listen_allowed()
 
 
 def _parts(hotkey):

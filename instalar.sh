@@ -54,7 +54,7 @@ echo "  [4/4] Abriendo Dicto..."
 nohup .venv/bin/python dicto.py >/dev/null 2>&1 &
 
 echo
-echo "  La primera vez se descarga el modelo de voz (~1,6 GB con el modelo Turbo)."
+echo "  La primera vez se descarga el modelo de voz (~640 MB)."
 echo "  Mientras tanto el icono de la bandeja se verá gris. Cuando se ponga verde, ya puedes dictar."
 if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
     echo
